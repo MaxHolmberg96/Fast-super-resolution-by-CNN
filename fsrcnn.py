@@ -1,17 +1,18 @@
 import tensorflow as tf
 
-def PSNR(p, y, max_pixel_value):
+MAX_PIXEL_VALUE = tf.constant(1.0)
+
+def PSNR(y, p):
     """
-    :param p: predicted.
     :param y: target value.
+    :param p: predicted.
     :param max_pixel_value: The max pixel value we're using.
 
     :return: Peak signal-to-noise ratio
     """
     def log10(x):
-        return tf.math.log(x) / tf.math.log(10)
-
-    return 10 * log10(tf.math.pow(max_pixel_value, 2) / tf.keras.losses.MSE(y_true=y, y_pred=p))
+        return tf.math.log(x) / tf.math.log(10.0)
+    return 10 * log10(tf.math.pow(MAX_PIXEL_VALUE, 2) / tf.keras.losses.MSE(y_true=y, y_pred=p))
 
 
 def FSRCNN(input_shape, d, s, m, upscaling):
@@ -58,10 +59,11 @@ def FSRCNN(input_shape, d, s, m, upscaling):
 
     model.compile(optimizer='sgd',
                   loss='mean_squared_error',
-                  metrics=['mean_squared_error'])
+                  metrics=['mean_squared_error', PSNR])
     model.build()
     return model
-fsrcnn = FSRCNN(input_shape=(100, 100, 1), d=56, s=12, m=4, upscaling=3)
+#fsrcnn = FSRCNN(input_shape=(100, 100, 1), d=56, s=12, m=4, upscaling=3)
+fsrcnn = FSRCNN(input_shape=(100, 100, 1), d=32, s=5, m=1, upscaling=3)
 fsrcnn.summary()
 #model.fit(x_train, y_train, epochs=5)
 #model.evaluate(x_test, y_test)
