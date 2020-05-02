@@ -48,14 +48,14 @@ def dataset_preparation(dataset, f_sub_lr, f_sub_hr, k, n):
                                               rates=[1, 1, 1, 1],
                                               padding='VALID')
         hr_patches = tf.image.extract_patches(images=tf.expand_dims(hr, 0),
-                                              sizes=[1, f_sub_hr + (n + 1), f_sub_hr + (n + 1), 1], # I have no idea why I have to add (n + 1) here
-                                              strides=[1, k, k, 1],
+                                              sizes=[1, f_sub_hr, f_sub_hr, 1], # I have no idea why I have to add (n + 1) here
+                                              strides=[1, k * n, k * n, 1],
                                               rates=[1, 1, 1, 1],
                                               padding='VALID')
         for j in range(lr_patches.shape[1]):
             for l in range(lr_patches.shape[2]):
                 lr_patch = tf.reshape(lr_patches[0, j, l], (1, f_sub_lr, f_sub_lr, 1))
-                hr_patch = tf.reshape(hr_patches[0, j, l], (1, f_sub_hr + (n + 1), f_sub_hr + (n + 1), 1))
+                hr_patch = tf.reshape(hr_patches[0, j, l], (1, f_sub_hr, f_sub_hr, 1))
                 yield lr_patch, hr_patch, [None]
 
 
@@ -133,8 +133,9 @@ def FSRCNN(input_shape, d, s, m, upscaling):
     return model
 
 upscaling = 2
-f_sub_lr = 7 + 4 #  I have also no idea why I have to add 4 here, something about padding in Caffe code downloaded from their project page.
-f_sub_hr = 19
+f_sub_lr = 7
+f_sub_hr = f_sub_lr * upscaling
+patch_stride = 4
 fsrcnn = FSRCNN(input_shape=(f_sub_lr, f_sub_lr, 1), d=56, s=12, m=4, upscaling=upscaling)
 #fsrcnn = FSRCNN(input_shape=(f_sub_lr, f_sub_lr, 1), d=32, s=5, m=1, upscaling=upscaling)
 
@@ -144,10 +145,9 @@ for i in range(0, len(fsrcnn.layers), 2):
     param_count += fsrcnn.layers[i].count_params()
 print("Number of parameters (PReLU not included):", param_count)
 
-
+# This is not used I think, as we use here f_sub_lr = a and then f_sub_hr = a * upscaling
 #Upscaling factor: 2x = f_sub_lr=10, f_sub_hr=19
 #Upscaling factor: 3x = f_sub_lr=7, f_sub_hr=19
 #Upscaling factor: 4x = f_sub_lr=6, f_sub_hr=21
-#dataset_preparation(general100_path, f_sub_lr=f_sub_lr, f_sub_hr=f_sub_hr, k=4, n=upscaling)
 
-fsrcnn.fit(dataset_preparation(general100_path, f_sub_lr=f_sub_lr, f_sub_hr=f_sub_hr, k=4, n=upscaling), epochs=5)
+fsrcnn.fit(dataset_preparation(general100_path, f_sub_lr=f_sub_lr, f_sub_hr=f_sub_hr, k=patch_stride, n=upscaling), epochs=5)
