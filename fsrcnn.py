@@ -10,7 +10,7 @@ import tensorflow as tf
 import pathlib
 from PIL import Image
 
-MAX_PIXEL_VALUE = tf.constant(255.0)
+MAX_PIXEL_VALUE = tf.constant(1.0)
 general100_path = "C:/Users/Max/edu/kth/DD2424/project/dataset/General-100/"
 image91_path = "C:/Users/Max"
 
@@ -38,7 +38,7 @@ def dataset_preparation(dataset, f_sub_lr, f_sub_hr, k, n):
         # Use grayscale because it is equivalent to first channel of yuv
         img = tf.keras.preprocessing.image.load_img(str(i), color_mode='grayscale')
         w, h = img.size
-        hr = tf.keras.preprocessing.image.img_to_array(img)
+        hr = tf.keras.preprocessing.image.img_to_array(img) / 255.0
         new_w = int(w / n)
         new_h = int(h / n)
         lr = tf.image.resize(tf.identity(hr), (new_h, new_w), method=tf.image.ResizeMethod.BICUBIC)
@@ -148,4 +148,6 @@ print("Number of parameters (PReLU not included):", param_count)
 #Upscaling factor: 2x = f_sub_lr=10, f_sub_hr=19
 #Upscaling factor: 3x = f_sub_lr=7, f_sub_hr=19
 #Upscaling factor: 4x = f_sub_lr=6, f_sub_hr=21
+#dataset_preparation(general100_path, f_sub_lr=f_sub_lr, f_sub_hr=f_sub_hr, k=4, n=upscaling)
+
 fsrcnn.fit(dataset_preparation(general100_path, f_sub_lr=f_sub_lr, f_sub_hr=f_sub_hr, k=4, n=upscaling), epochs=5)
