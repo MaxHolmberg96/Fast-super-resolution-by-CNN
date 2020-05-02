@@ -14,7 +14,7 @@ MAX_PIXEL_VALUE = tf.constant(255.0)
 general100_path = "C:/Users/Max/edu/kth/DD2424/project/dataset/General-100/"
 image91_path = "C:/Users/Max"
 
-def dataset_preparation(dataset, f_sub, k, n):
+def dataset_preparation(dataset, f_sub_lr, f_sub_hr, k, n):
     """
     0. Read in all images in a 4d tensor of shape [batch, size1, size2, channels]
 
@@ -43,19 +43,19 @@ def dataset_preparation(dataset, f_sub, k, n):
         new_h = int(h / n)
         lr = tf.image.resize(tf.identity(hr), (new_h, new_w), method=tf.image.ResizeMethod.BICUBIC)
         lr_patches = tf.image.extract_patches(images=tf.expand_dims(lr, 0),
-                                              sizes=[1, f_sub, f_sub, 1],
+                                              sizes=[1, f_sub_lr, f_sub_lr, 1],
                                               strides=[1, k, k, 1],
                                               rates=[1, 1, 1, 1],
                                               padding='VALID')
         hr_patches = tf.image.extract_patches(images=tf.expand_dims(hr, 0),
-                                              sizes=[1, f_sub * n, f_sub * n, 1],
-                                              strides=[1, k * n, k * n, 1],
+                                              sizes=[1, f_sub_hr, f_sub_hr, 1],
+                                              strides=[1, k, k, 1],
                                               rates=[1, 1, 1, 1],
                                               padding='VALID')
         for j in range(lr_patches.shape[1]):
             for l in range(lr_patches.shape[2]):
-                lr_patch = tf.reshape(lr_patches[0, j, l], (1, f_sub, f_sub, 1))
-                hr_patch = tf.reshape(hr_patches[0, j, l], (1, f_sub * n, f_sub * n, 1))
+                lr_patch = tf.reshape(lr_patches[0, j, l], (1, f_sub_lr, f_sub_lr, 1))
+                hr_patch = tf.reshape(hr_patches[0, j, l], (1, f_sub_hr, f_sub_hr, 1))
                 yield (lr_patch, hr_patch)
 
 
@@ -115,16 +115,15 @@ def FSRCNN(input_shape, d, s, m, upscaling):
     This layer is sometimes called Deconvolution.
     """
     model.add(tf.keras.layers.Conv2DTranspose(filters=1, kernel_size=9, strides=(upscaling, upscaling), padding="same", use_bias=False))
-
-    model.compile(optimizer='sgd',
+    sgd = tf.keras.optimizers.SGD(learning_rate=1e-3, momentum=0.0)
+    model.compile(optimizer=sgd,
                   loss='mean_squared_error',
                   metrics=['mean_squared_error', psnr])
     model.build()
     return model
-#fsrcnn = FSRCNN(input_shape=(100, 100, 1), d=56, s=12, m=4, upscaling=3)
 upscaling = 2
-f_sub = 50
-fsrcnn = FSRCNN(input_shape=(f_sub, f_sub, 1), d=32, s=5, m=1, upscaling=upscaling)
+fsrcnn = FSRCNN(input_shape=(100, 100, 1), d=56, s=12, m=4, upscaling=upscaling)
+#fsrcnn = FSRCNN(input_shape=(f_sub, f_sub, 1), d=32, s=5, m=1, upscaling=upscaling)
 
 fsrcnn.summary()
 param_count = 0
@@ -132,4 +131,8 @@ for i in range(0, len(fsrcnn.layers), 2):
     param_count += fsrcnn.layers[i].count_params()
 print("Number of parameters (PReLU not included):", param_count)
 
-fsrcnn.fit(dataset_preparation(general100_path, f_sub=f_sub, k=50, n=upscaling), epochs=5)
+
+#Upscaling factor: 2x = f_sub_lr=10, f_sub_hr=10
+#Upscaling factor: 3x = f_sub_lr=7, f_sub_hr=19
+#Upscaling factor: 4x = f_sub_lr=6, f_sub_hr=21
+fsrcnn.fit(dataset_preparation(general100_path, f_sub_lr=10, f_sub_hr=19, k=4, n=upscaling), epochs=5)
