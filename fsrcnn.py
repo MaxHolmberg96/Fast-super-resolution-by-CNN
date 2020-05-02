@@ -1,27 +1,68 @@
+"""
+Packages:
+    pip install tensorflow
+    pip install Pillow
+
+"""
+
+
 import tensorflow as tf
 import pathlib
+from PIL import Image
 
-MAX_PIXEL_VALUE = tf.constant(1.0)
+MAX_PIXEL_VALUE = tf.constant(255.0)
 general100_path = "C:/Users/Max/edu/kth/DD2424/project/dataset/General-100/"
 image91_path = "C:/Users/Max"
 
-def dataset_preparation(dataset, f_sub, k):
+def dataset_preparation(dataset, f_sub, k, n):
     """
-    We're gonna extract patches of size (f_sub x f_sub) with stride k, following:
-    https://www.tensorflow.org/api_docs/python/tf/image/extract_patches we can do this easily.
+    0. Read in all images in a 4d tensor of shape [batch, size1, size2, channels]
+
+    1. Convert images to illuminance with: tf.image.rgb_to_yuv and extract first channel
+
+    2. Downscale images by a factor of n (upscale factor)
+        tf.image.resize(
+            images, size, method=ResizeMethod.BICUBIC, preserve_aspect_ratio=False,
+            antialias=False, name=None
+        )
+
+
+    3. We're gonna extract patches of size (f_sub x f_sub) with stride k, following:
+        https://www.tensorflow.org/api_docs/python/tf/image/extract_patches we can do this easily.
+
 
     :param dataset: The dataset to extract patches and prepare
     """
     data_dir = pathlib.Path(dataset)
-    images = data_dir.glob('*.bmp')
-    print("Number of images found:", len(list(images)))
+    for i in data_dir.glob('*.bmp'):
+        # Use grayscale because it is equivalent to first channel of yuv
+        img = tf.keras.preprocessing.image.load_img(str(i), color_mode='grayscale')
+        w, h = img.size
+        hr = tf.keras.preprocessing.image.img_to_array(img)
+        new_w = int(w / n)
+        new_h = int(h / n)
+        lr = tf.image.resize(tf.identity(hr), (new_h, new_w), method=tf.image.ResizeMethod.BICUBIC)
+        lr_patches = tf.image.extract_patches(images=tf.expand_dims(lr, 0),
+                                              sizes=[1, f_sub, f_sub, 1],
+                                              strides=[1, k, k, 1],
+                                              rates=[1, 1, 1, 1],
+                                              padding='VALID')
+        hr_patches = tf.image.extract_patches(images=tf.expand_dims(hr, 0),
+                                              sizes=[1, f_sub * n, f_sub * n, 1],
+                                              strides=[1, k * n, k * n, 1],
+                                              rates=[1, 1, 1, 1],
+                                              padding='VALID')
+        for j in range(lr_patches.shape[1]):
+            for l in range(lr_patches.shape[2]):
+                lr_patch = tf.reshape(lr_patches[0, j, l], (1, f_sub, f_sub, 1))
+                hr_patch = tf.reshape(hr_patches[0, j, l], (1, f_sub * n, f_sub * n, 1))
+                yield (lr_patch, hr_patch)
 
-
-
-dataset_preparation(general100_path, 5, 3)
 
 def psnr(y, p):
     """
+    Implemented from the wiki page of PSNR.
+
     :param y: target value.
     :param p: predicted.
     :param max_pixel_value: The max pixel value we're using.
@@ -81,11 +122,14 @@ def FSRCNN(input_shape, d, s, m, upscaling):
     model.build()
     return model
 #fsrcnn = FSRCNN(input_shape=(100, 100, 1), d=56, s=12, m=4, upscaling=3)
-fsrcnn = FSRCNN(input_shape=(100, 100, 1), d=32, s=5, m=1, upscaling=3)
+upscaling = 2
+f_sub = 50
+fsrcnn = FSRCNN(input_shape=(f_sub, f_sub, 1), d=32, s=5, m=1, upscaling=upscaling)
+
 fsrcnn.summary()
 param_count = 0
 for i in range(0, len(fsrcnn.layers), 2):
     param_count += fsrcnn.layers[i].count_params()
-print(param_count)
-#model.fit(x_train, y_train, epochs=5)
-#model.evaluate(x_test, y_test)
+print("Number of parameters (PReLU not included):", param_count)
+
+fsrcnn.fit(dataset_preparation(general100_path, f_sub=f_sub, k=50, n=upscaling), epochs=5)
