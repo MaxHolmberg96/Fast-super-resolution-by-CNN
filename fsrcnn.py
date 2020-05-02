@@ -11,8 +11,8 @@ import pathlib
 import numpy as np
 
 MAX_PIXEL_VALUE = tf.constant(1.0)
-general100_path = "C:/Users/Max/edu/kth/DD2424/project/dataset/General-100/"
-image91_path = "C:/Users/Max"
+general100_path = "dataset/General-100/"
+image91_path = "dataset/T91/"
 
 def dataset_preparation(dataset, f_sub_lr, f_sub_hr, k, n):
     """
@@ -141,7 +141,7 @@ print("Number of parameters (PReLU not included):", param_count)
 
 generator = dataset_preparation(general100_path, f_sub_lr=f_sub_lr, f_sub_hr=f_sub_hr, k=patch_stride, n=upscaling)
 
-fsrcnn.fit(generator, epochs=50, steps_per_epoch=1000)
+fsrcnn.fit(generator, epochs=50, steps_per_epoch=10000)
 """
 item = next(generator)
 lr = item[0]
