@@ -8,6 +8,7 @@ Packages:
 
 import tensorflow as tf
 import pathlib
+from tqdm import tqdm
 import numpy as np
 
 MAX_PIXEL_VALUE = tf.constant(1.0)
@@ -33,8 +34,10 @@ def dataset_preparation(dataset, f_sub_lr, f_sub_hr, k, n):
 
     :param dataset: The dataset to extract patches and prepare
     """
+    x = []
+    y = []
     data_dir = pathlib.Path(dataset)
-    for i in data_dir.glob('*.bmp'):
+    for i in tqdm(data_dir.glob('*.bmp')):
         # Use grayscale because it is equivalent to first channel of yuv
         img = tf.keras.preprocessing.image.load_img(str(i), color_mode='grayscale')
         w, h = img.size
@@ -56,7 +59,11 @@ def dataset_preparation(dataset, f_sub_lr, f_sub_hr, k, n):
             for l in range(lr_patches.shape[2]):
                 lr_patch = tf.reshape(lr_patches[0, j, l], (1, f_sub_lr, f_sub_lr, 1))
                 hr_patch = tf.reshape(hr_patches[0, j, l], (1, f_sub_hr, f_sub_hr, 1))
-                yield lr_patch, hr_patch, [None]
+                x.append(lr_patch)
+                y.append(hr_patch)
+                #yield lr_patch, hr_patch, [None]
+
+    return tf.concat(x, axis=0), tf.concat(y, axis=0)
 
 
 def psnr(y, p):
@@ -114,7 +121,7 @@ def FSRCNN(input_shape, d, s, m, upscaling):
                                               use_bias=False,
                                               kernel_initializer=tf.random_normal_initializer(mean=0.0, stddev=0.001)))
 
-    sgd = tf.keras.optimizers.SGD(learning_rate=1e-3, momentum=0.0)
+    sgd = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.0)
     model.compile(optimizer=sgd,
                   loss='mean_squared_error',
                   metrics=['mean_squared_error', psnr])
@@ -122,7 +129,7 @@ def FSRCNN(input_shape, d, s, m, upscaling):
     return model
 
 upscaling = 3
-f_sub_lr = 7
+f_sub_lr = 40
 f_sub_hr = f_sub_lr * upscaling
 patch_stride = 4
 fsrcnn = FSRCNN(input_shape=(f_sub_lr, f_sub_lr, 1), d=56, s=12, m=4, upscaling=upscaling)
@@ -139,16 +146,21 @@ print("Number of parameters (PReLU not included):", param_count)
 #Upscaling factor: 3x = f_sub_lr=7, f_sub_hr=19
 #Upscaling factor: 4x = f_sub_lr=6, f_sub_hr=21
 
-generator = dataset_preparation(general100_path, f_sub_lr=f_sub_lr, f_sub_hr=f_sub_hr, k=patch_stride, n=upscaling)
+x, y = dataset_preparation(general100_path, f_sub_lr=f_sub_lr, f_sub_hr=f_sub_hr, k=patch_stride, n=upscaling)
+#np.savez("data", x=x, y=y)
+#d = np.load("data.npz")
+#x = d["x"]
+#y = d["y"]
+print("max", np.max(x))
+print("x.shape", x.shape)
+print("y.shape", y.shape)
+np.savez("data", x=x, y=y)
+fsrcnn.fit(x, y, epochs=3, batch_size=64, shuffle=True)
 
-fsrcnn.fit(generator, epochs=50, steps_per_epoch=10000)
-"""
-item = next(generator)
-lr = item[0]
-hr = item[1]
+lr = tf.expand_dims(x[0], 0)
+hr = tf.expand_dims(y[0], 0)
 
 lr_pred = fsrcnn.predict(lr)
 tf.keras.preprocessing.image.save_img(path="lr_pred.bmp", x=lr_pred[0])
 tf.keras.preprocessing.image.save_img(path="lr.bmp", x=lr[0])
 tf.keras.preprocessing.image.save_img(path="hr.bmp", x=hr[0])
-"""
