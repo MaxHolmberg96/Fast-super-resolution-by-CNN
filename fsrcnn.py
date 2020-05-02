@@ -1,8 +1,26 @@
 import tensorflow as tf
+import pathlib
 
 MAX_PIXEL_VALUE = tf.constant(1.0)
+general100_path = "C:/Users/Max/edu/kth/DD2424/project/dataset/General-100/"
+image91_path = "C:/Users/Max"
 
-def PSNR(y, p):
+def dataset_preparation(dataset, f_sub, k):
+    """
+    We're gonna extract patches of size (f_sub x f_sub) with stride k, following:
+    https://www.tensorflow.org/api_docs/python/tf/image/extract_patches we can do this easily.
+
+    :param dataset: The dataset to extract patches and prepare
+    """
+    data_dir = pathlib.Path(dataset)
+    images = data_dir.glob('*.bmp')
+    print("Number of images found:", len(list(images)))
+
+
+
+dataset_preparation(general100_path, 5, 3)
+
+def psnr(y, p):
     """
     :param y: target value.
     :param p: predicted.
@@ -27,27 +45,27 @@ def FSRCNN(input_shape, d, s, m, upscaling):
     The first convolution is the Feature Extraction which is denoted Conv(5, d, 1) in the paper. Channels = 1 is 
     automatically set to one because the input has 1 channel.
     """
-    model.add(tf.keras.layers.Conv2D(input_shape=input_shape, filters=d, kernel_size=5, strides=(1, 1), padding="same",
-                               data_format="channels_last"))
+    model.add(tf.keras.layers.Conv2D(input_shape=input_shape, filters=d, kernel_size=5, padding="same",
+                               data_format="channels_last", use_bias=False))
     model.add(tf.keras.layers.PReLU())
     """
     The second convolution is the Shrinking which is denoted Conv(1, s, d) in the paper.
     """
-    model.add(tf.keras.layers.Conv2D(filters=s, kernel_size=1, strides=(1, 1), padding="same"))
+    model.add(tf.keras.layers.Conv2D(filters=s, kernel_size=1, padding="same", use_bias=False))
     model.add(tf.keras.layers.PReLU())
 
     """
     The third part consists of m convolutional layers each denoted Conv(3, s, s) in the paper.
     """
     for i in range(m):
-        model.add(tf.keras.layers.Conv2D(filters=s, kernel_size=3, strides=(1, 1), padding="same"))
+        model.add(tf.keras.layers.Conv2D(filters=s, kernel_size=3, padding="same", use_bias=False))
         model.add(tf.keras.layers.PReLU())
 
     """
     The fourth part is the expanding part which is denoted Conv(1, d, s) in the paper. Note that this is the 
     opposite of the shrinking, that is in the shrinking part we go from channels 56 -> 12 and here we go from 12 -> 56.
     """
-    model.add(tf.keras.layers.Conv2D(filters=d, kernel_size=1, strides=(1, 1), padding="same"))
+    model.add(tf.keras.layers.Conv2D(filters=d, kernel_size=1, padding="same", use_bias=False))
     model.add(tf.keras.layers.PReLU())
 
     """
@@ -55,15 +73,19 @@ def FSRCNN(input_shape, d, s, m, upscaling):
     Note that here we use Conv2DTranspose: https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv2DTranspose,
     This layer is sometimes called Deconvolution.
     """
-    model.add(tf.keras.layers.Conv2DTranspose(filters=1, kernel_size=9, strides=(upscaling, upscaling), padding="same"))
+    model.add(tf.keras.layers.Conv2DTranspose(filters=1, kernel_size=9, strides=(upscaling, upscaling), padding="same", use_bias=False))
 
     model.compile(optimizer='sgd',
                   loss='mean_squared_error',
-                  metrics=['mean_squared_error', PSNR])
+                  metrics=['mean_squared_error', psnr])
     model.build()
     return model
 #fsrcnn = FSRCNN(input_shape=(100, 100, 1), d=56, s=12, m=4, upscaling=3)
 fsrcnn = FSRCNN(input_shape=(100, 100, 1), d=32, s=5, m=1, upscaling=3)
 fsrcnn.summary()
+param_count = 0
+for i in range(0, len(fsrcnn.layers), 2):
+    param_count += fsrcnn.layers[i].count_params()
+print(param_count)
 #model.fit(x_train, y_train, epochs=5)
 #model.evaluate(x_test, y_test)
