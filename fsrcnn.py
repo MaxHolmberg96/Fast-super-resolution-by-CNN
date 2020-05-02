@@ -121,9 +121,12 @@ def FSRCNN(input_shape, d, s, m, upscaling):
                   metrics=['mean_squared_error', psnr])
     model.build()
     return model
+
 upscaling = 2
-fsrcnn = FSRCNN(input_shape=(100, 100, 1), d=56, s=12, m=4, upscaling=upscaling)
-#fsrcnn = FSRCNN(input_shape=(f_sub, f_sub, 1), d=32, s=5, m=1, upscaling=upscaling)
+f_sub_lr = 10
+f_sub_hr = 19
+#fsrcnn = FSRCNN(input_shape=(100, 100, 1), d=56, s=12, m=4, upscaling=upscaling)
+fsrcnn = FSRCNN(input_shape=(f_sub_lr, f_sub_lr, 1), d=32, s=5, m=1, upscaling=upscaling)
 
 fsrcnn.summary()
 param_count = 0
@@ -135,4 +138,4 @@ print("Number of parameters (PReLU not included):", param_count)
 #Upscaling factor: 2x = f_sub_lr=10, f_sub_hr=10
 #Upscaling factor: 3x = f_sub_lr=7, f_sub_hr=19
 #Upscaling factor: 4x = f_sub_lr=6, f_sub_hr=21
-fsrcnn.fit(dataset_preparation(general100_path, f_sub_lr=10, f_sub_hr=19, k=4, n=upscaling), epochs=5)
+fsrcnn.fit(dataset_preparation(general100_path, f_sub_lr=f_sub_lr, f_sub_hr=f_sub_hr, k=4, n=upscaling), epochs=5)
