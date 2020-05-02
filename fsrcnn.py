@@ -8,7 +8,7 @@ Packages:
 
 import tensorflow as tf
 import pathlib
-from PIL import Image
+import numpy as np
 
 MAX_PIXEL_VALUE = tf.constant(1.0)
 general100_path = "C:/Users/Max/edu/kth/DD2424/project/dataset/General-100/"
@@ -48,7 +48,7 @@ def dataset_preparation(dataset, f_sub_lr, f_sub_hr, k, n):
                                               rates=[1, 1, 1, 1],
                                               padding='VALID')
         hr_patches = tf.image.extract_patches(images=tf.expand_dims(hr, 0),
-                                              sizes=[1, f_sub_hr, f_sub_hr, 1], # I have no idea why I have to add (n + 1) here
+                                              sizes=[1, f_sub_hr, f_sub_hr, 1],
                                               strides=[1, k * n, k * n, 1],
                                               rates=[1, 1, 1, 1],
                                               padding='VALID')
@@ -60,18 +60,7 @@ def dataset_preparation(dataset, f_sub_lr, f_sub_hr, k, n):
 
 
 def psnr(y, p):
-    """
-    Implemented from the wiki page of PSNR.
-
-    :param y: target value.
-    :param p: predicted.
-    :param max_pixel_value: The max pixel value we're using.
-
-    :return: Peak signal-to-noise ratio
-    """
-    def log10(x):
-        return tf.math.log(x) / tf.math.log(10.0)
-    return 10 * log10(tf.math.pow(MAX_PIXEL_VALUE, 2) / tf.keras.losses.MSE(y_true=y, y_pred=p))
+    return tf.image.psnr(y, p, max_val=1.0)
 
 
 def FSRCNN(input_shape, d, s, m, upscaling):
@@ -132,7 +121,7 @@ def FSRCNN(input_shape, d, s, m, upscaling):
     model.build()
     return model
 
-upscaling = 2
+upscaling = 3
 f_sub_lr = 7
 f_sub_hr = f_sub_lr * upscaling
 patch_stride = 4
@@ -150,4 +139,16 @@ print("Number of parameters (PReLU not included):", param_count)
 #Upscaling factor: 3x = f_sub_lr=7, f_sub_hr=19
 #Upscaling factor: 4x = f_sub_lr=6, f_sub_hr=21
 
-fsrcnn.fit(dataset_preparation(general100_path, f_sub_lr=f_sub_lr, f_sub_hr=f_sub_hr, k=patch_stride, n=upscaling), epochs=5)
+generator = dataset_preparation(general100_path, f_sub_lr=f_sub_lr, f_sub_hr=f_sub_hr, k=patch_stride, n=upscaling)
+
+fsrcnn.fit(generator, epochs=50, steps_per_epoch=1000)
+"""
+item = next(generator)
+lr = item[0]
+hr = item[1]
+
+lr_pred = fsrcnn.predict(lr)
+tf.keras.preprocessing.image.save_img(path="lr_pred.bmp", x=lr_pred[0])
+tf.keras.preprocessing.image.save_img(path="lr.bmp", x=lr[0])
+tf.keras.preprocessing.image.save_img(path="hr.bmp", x=hr[0])
+"""
