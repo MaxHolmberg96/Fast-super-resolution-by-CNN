@@ -1,5 +1,18 @@
 import tensorflow as tf
 
+def PSNR(p, y, max_pixel_value):
+    """
+    :param p: predicted.
+    :param y: target value.
+    :param max_pixel_value: The max pixel value we're using.
+
+    :return: Peak signal-to-noise ratio
+    """
+    def log10(x):
+        return tf.math.log(x) / tf.math.log(10)
+
+    return 10 * log10(tf.math.pow(max_pixel_value, 2) / tf.keras.losses.MSE(y_true=y, y_pred=p))
+
 
 def FSRCNN(input_shape, d, s, m, upscaling):
     """
