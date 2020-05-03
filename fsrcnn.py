@@ -44,7 +44,7 @@ def dataset_preparation(dataset, f_sub_lr, f_sub_hr, k, n):
         # Use grayscale because it is equivalent to first channel of yuv
         img = tf.keras.preprocessing.image.load_img(str(i), color_mode="grayscale")
         for rot in range(4):
-            hr = tf.keras.preprocessing.image.img_to_array(img) / 255.0
+            hr = tf.keras.preprocessing.image.img_to_array(img)
             hr = tf.image.rot90(hr, k=rot)
             h, w, _ = hr.shape
             new_w = int(w / n)
@@ -75,8 +75,10 @@ def dataset_preparation(dataset, f_sub_lr, f_sub_hr, k, n):
                     x.append(lr_patch)
                     y.append(hr_patch)
                 # yield lr_patch, hr_patch, [None]
+    x = tf.concat(x, axis=0) / np.max(x)
+    y = tf.concat(y, axis=0) / 255.0
 
-    return tf.concat(x, axis=0), tf.concat(y, axis=0)
+    return x, y
 
 
 def psnr(y, p):
