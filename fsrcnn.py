@@ -43,38 +43,47 @@ def dataset_preparation(dataset, f_sub_lr, f_sub_hr, k, n):
     for i in tqdm(data_dir.glob(f"*{extension}")):
         # Use grayscale because it is equivalent to first channel of yuv
         img = tf.keras.preprocessing.image.load_img(str(i), color_mode="grayscale")
-        for rot in range(4):
-            hr = tf.keras.preprocessing.image.img_to_array(img)
-            hr = tf.image.rot90(hr, k=rot)
-            h, w, _ = hr.shape
-            new_w = int(w / n)
-            new_h = int(h / n)
-            lr = tf.image.resize(
-                tf.identity(hr), (new_h, new_w), method=tf.image.ResizeMethod.BICUBIC
-            )
-            lr_patches = tf.image.extract_patches(
-                images=tf.expand_dims(lr, 0),
-                sizes=[1, f_sub_lr, f_sub_lr, 1],
-                strides=[1, k, k, 1],
-                rates=[1, 1, 1, 1],
-                padding="VALID",
-            )
-            hr_patches = tf.image.extract_patches(
-                images=tf.expand_dims(hr, 0),
-                sizes=[1, f_sub_hr, f_sub_hr, 1],
-                strides=[1, k * n, k * n, 1],
-                rates=[1, 1, 1, 1],
-                padding="VALID",
-            )
-            for j in range(lr_patches.shape[1]):
-                for l in range(lr_patches.shape[2]):
-                    lr_patch = tf.reshape(lr_patches[0, j, l], (1, f_sub_lr, f_sub_lr, 1))
-                    lr_patch = tf.image.rot90(lr_patch, k=rot)
-                    hr_patch = tf.reshape(hr_patches[0, j, l], (1, f_sub_hr, f_sub_hr, 1))
-                    hr_patch = tf.image.rot90(hr_patch, k=rot)
-                    x.append(lr_patch)
-                    y.append(hr_patch)
-                # yield lr_patch, hr_patch, [None]
+        for scale in [1, 0.9, 0.8, 0.7, 0.6]:
+            for rot in range(4):
+                hr = tf.keras.preprocessing.image.img_to_array(img)
+                hr = tf.image.rot90(hr, k=rot)
+                h, w, _ = hr.shape
+                hr = tf.image.resize(
+                    tf.identity(hr),
+                    (int(scale * w), int(scale * h)),
+                    method=tf.image.ResizeMethod.BICUBIC,
+                )
+                h, w, _ = hr.shape
+                new_w = int((w / n))
+                new_h = int((h / n))
+                lr = tf.image.resize(
+                    tf.identity(hr), (new_h, new_w), method=tf.image.ResizeMethod.BICUBIC
+                )
+                lr_patches = tf.image.extract_patches(
+                    images=tf.expand_dims(lr, 0),
+                    sizes=[1, f_sub_lr, f_sub_lr, 1],
+                    strides=[1, k, k, 1],
+                    rates=[1, 1, 1, 1],
+                    padding="VALID",
+                )
+                hr_patches = tf.image.extract_patches(
+                    images=tf.expand_dims(hr, 0),
+                    sizes=[1, f_sub_hr, f_sub_hr, 1],
+                    strides=[1, (k * n), (k * n), 1],
+                    rates=[1, 1, 1, 1],
+                    padding="VALID",
+                )
+                print(lr_patches.shape, hr_patches.shape)
+                exit()
+                for j in range(lr_patches.shape[1]):
+                    for l in range(lr_patches.shape[2]):
+                        lr_patch = tf.reshape(lr_patches[0, j, l], (1, f_sub_lr, f_sub_lr, 1))
+                        lr_patch = tf.image.rot90(lr_patch, k=rot)
+                        hr_patch = tf.reshape(hr_patches[0, j, l], (1, f_sub_hr, f_sub_hr, 1))
+                        hr_patch = tf.image.rot90(hr_patch, k=rot)
+                        x.append(lr_patch)
+                        y.append(hr_patch)
+                    # yield lr_patch, hr_patch, [None]
     x = tf.concat(x, axis=0) / np.max(x)
     y = tf.concat(y, axis=0) / 255.0
 
@@ -172,14 +181,14 @@ def FSRCNN(input_shape, d, s, m, upscaling):
         )
     )
 
-    sgd = tf.keras.optimizers.SGD(learning_rate=1e-2, momentum=0.0)
+    sgd = tf.keras.optimizers.SGD(learning_rate=1e-3, momentum=0.0)
     model.compile(optimizer=sgd, loss="mean_squared_error", metrics=["mean_squared_error", psnr])
     model.build()
     return model
 
 
 upscaling = 3
-f_sub_lr = 40
+f_sub_lr = 7
 f_sub_hr = f_sub_lr * upscaling
 patch_stride = 4
 fsrcnn = FSRCNN(input_shape=(f_sub_lr, f_sub_lr, 1), d=56, s=12, m=4, upscaling=upscaling)
@@ -207,7 +216,7 @@ print("max", np.max(x))
 print("x.shape", x.shape)
 print("y.shape", y.shape)
 np.savez("data", x=x, y=y)
-fsrcnn.fit(x, y, epochs=3, batch_size=64, shuffle=True)
+fsrcnn.fit(x, y, epochs=3, batch_size=16, shuffle=True)
 
 lr = tf.expand_dims(x[0], 0)
 hr = tf.expand_dims(y[0], 0)
