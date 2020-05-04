@@ -32,7 +32,7 @@ def FSRCNN(input_shape, d, s, m, upscaling):
     """
     model.add(
         tf.keras.layers.Conv2D(
-            input_shape=input_shape,
+            input_shape=(None, None, 1),
             filters=d,
             kernel_size=5,
             padding="same",
@@ -41,7 +41,7 @@ def FSRCNN(input_shape, d, s, m, upscaling):
             kernel_initializer=tf.keras.initializers.he_normal(),
         )
     )
-    model.add(tf.keras.layers.PReLU())
+    model.add(tf.keras.layers.PReLU(shared_axes=[1, 2]))
     """
     The second convolution is the Shrinking which is denoted Conv(1, s, d) in the paper.
     """
@@ -54,7 +54,7 @@ def FSRCNN(input_shape, d, s, m, upscaling):
             kernel_initializer=tf.keras.initializers.he_normal(),
         )
     )
-    model.add(tf.keras.layers.PReLU())
+    model.add(tf.keras.layers.PReLU(shared_axes=[1, 2]))
 
     """
     The third part consists of m convolutional layers each denoted Conv(3, s, s) in the paper.
@@ -69,7 +69,7 @@ def FSRCNN(input_shape, d, s, m, upscaling):
                 kernel_initializer=tf.keras.initializers.he_normal(),
             )
         )
-        model.add(tf.keras.layers.PReLU())
+        model.add(tf.keras.layers.PReLU(shared_axes=[1, 2]))
 
     """
     The fourth part is the expanding part which is denoted Conv(1, d, s) in the paper. Note that this is the
@@ -84,7 +84,7 @@ def FSRCNN(input_shape, d, s, m, upscaling):
             kernel_initializer=tf.keras.initializers.he_normal(),
         )
     )
-    model.add(tf.keras.layers.PReLU())
+    model.add(tf.keras.layers.PReLU(shared_axes=[1, 2]))
 
     """
     The deconvolution part is denoted DeConv(9, 1, d) in the paper. The upscaling factor is decided by the stride.
@@ -102,7 +102,7 @@ def FSRCNN(input_shape, d, s, m, upscaling):
         )
     )
 
-    sgd = tf.keras.optimizers.Adam()
+    sgd = tf.keras.optimizers.SGD(learning_rate=1e-3)
     model.compile(optimizer=sgd, loss="mean_squared_error", metrics=[psnr])
     model.build()
 
