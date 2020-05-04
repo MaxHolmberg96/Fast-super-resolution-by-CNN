@@ -17,27 +17,7 @@ general100_path = "dataset/General-100/"
 image91_path = "dataset/T91/"
 
 
-def dataset_preparation(dataset, f_sub_lr, f_sub_hr, k, n):
-    """
-    0. Read in all images in a 4d tensor of shape [batch, size1, size2, channels]
-
-    1. Convert images to illuminance with: tf.image.rgb_to_yuv and extract first channel
-
-    2. Downscale images by a factor of n (upscale factor)
-        tf.image.resize(
-            images, size, method=ResizeMethod.BICUBIC, preserve_aspect_ratio=False,
-            antialias=False, name=None
-        )
-
-
-    3. We're gonna extract patches of size (f_sub x f_sub) with stride k, following:
-        https://www.tensorflow.org/api_docs/python/tf/image/extract_patches we can do this easily.
-
-
-    :param dataset: The dataset to extract patches and prepare
-    """
-    x = []
-    y = []
+def save_augmented_data(dataset, save_folder):
     data_dir = pathlib.Path(dataset)
     _, extension = os.path.splitext(os.listdir(data_dir)[3])
     for i in tqdm(data_dir.glob(f"*{extension}")):
@@ -50,45 +30,11 @@ def dataset_preparation(dataset, f_sub_lr, f_sub_hr, k, n):
                 h, w, _ = hr.shape
                 hr = tf.image.resize(
                     tf.identity(hr),
-                    (int(scale * w), int(scale * h)),
+                    (int(scale * h), int(scale * w)),
                     method=tf.image.ResizeMethod.BICUBIC,
                 )
-                h, w, _ = hr.shape
-                new_w = int((w / n))
-                new_h = int((h / n))
-                lr = tf.image.resize(
-                    tf.identity(hr), (new_h, new_w), method=tf.image.ResizeMethod.BICUBIC
-                )
-                lr_patches = tf.image.extract_patches(
-                    images=tf.expand_dims(lr, 0),
-                    sizes=[1, f_sub_lr, f_sub_lr, 1],
-                    strides=[1, k, k, 1],
-                    rates=[1, 1, 1, 1],
-                    padding="VALID",
-                )
-                hr_patches = tf.image.extract_patches(
-                    images=tf.expand_dims(hr, 0),
-                    sizes=[1, f_sub_hr, f_sub_hr, 1],
-                    strides=[1, (k * n), (k * n), 1],
-                    rates=[1, 1, 1, 1],
-                    padding="VALID",
-                )
-                print(lr_patches.shape, hr_patches.shape)
-                exit()
-                for j in range(lr_patches.shape[1]):
-                    for l in range(lr_patches.shape[2]):
-                        lr_patch = tf.reshape(lr_patches[0, j, l], (1, f_sub_lr, f_sub_lr, 1))
-                        lr_patch = tf.image.rot90(lr_patch, k=rot)
-                        hr_patch = tf.reshape(hr_patches[0, j, l], (1, f_sub_hr, f_sub_hr, 1))
-                        hr_patch = tf.image.rot90(hr_patch, k=rot)
-                        x.append(lr_patch)
-                        y.append(hr_patch)
-                    # yield lr_patch, hr_patch, [None]
-    x = tf.concat(x, axis=0) / np.max(x)
-    y = tf.concat(y, axis=0) / 255.0
-
-    return x, y
-
+                name = str(i).split("\\")[2].split(".")[0]
+                tf.keras.preprocessing.image.save_img(f"{save_folder}/{name}_rot={rot*90}_scale={scale}.{extension}", x=hr)
 
 def psnr(y, p):
     return tf.image.psnr(y, p, max_val=1.0)
@@ -205,13 +151,13 @@ print("Number of parameters (PReLU not included):", param_count)
 # Upscaling factor: 3x = f_sub_lr=7, f_sub_hr=19
 # Upscaling factor: 4x = f_sub_lr=6, f_sub_hr=21
 
-x, y = dataset_preparation(
-    general100_path, f_sub_lr=f_sub_lr, f_sub_hr=f_sub_hr, k=patch_stride, n=upscaling
-)
+save_augmented_data(image91_path, save_folder="dataset/T91-aug")
+
 # np.savez("data", x=x, y=y)
 # d = np.load("data.npz")
 # x = d["x"]
 # y = d["y"]
+"""
 print("max", np.max(x))
 print("x.shape", x.shape)
 print("y.shape", y.shape)
@@ -225,3 +171,4 @@ lr_pred = fsrcnn.predict(lr)
 tf.keras.preprocessing.image.save_img(path="lr_pred.bmp", x=lr_pred[0])
 tf.keras.preprocessing.image.save_img(path="lr.bmp", x=lr[0])
 tf.keras.preprocessing.image.save_img(path="hr.bmp", x=hr[0])
+"""
