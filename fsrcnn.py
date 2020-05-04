@@ -11,8 +11,8 @@ import pathlib
 import os
 from tqdm import tqdm
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
+# import matplotlib.pyplot as plt
+# import matplotlib.image as mpimg
 
 MAX_PIXEL_VALUE = tf.constant(1.0)
 general100_path = "dataset/General-100/"
@@ -35,7 +35,10 @@ def save_augmented_data(dataset, save_folder):
                     (int(scale * h), int(scale * w)),
                     method=tf.image.ResizeMethod.BICUBIC,
                 )
-                name = str(i).split("\\")[2].split(".")[0]
+                if str(i).find("\\") == -1:
+                    name = str(i).split("/")[2].split(".")[0]
+                else:
+                    name = str(i).split("\\")[2].split(".")[0]
                 tf.keras.preprocessing.image.save_img(f"{save_folder}/{name}_rot={rot*90}_scale={scale}.{extension}", x=hr)
 
 
@@ -66,17 +69,17 @@ def generator(dataset_folder, batch_size, f_sub_lr, f_sub_hr, k, upscaling):
             rates=[1, 1, 1, 1],
             padding="VALID",
         )
-        size = 0
-        for j in range(lr_patches.shape[1]): # Horizontal strides
-            for l in range(lr_patches.shape[2]): # Vertical strides
+        # size = 0
+        for j in range(lr_patches.shape[1]):  # Horizontal strides
+            for l in range(lr_patches.shape[2]):  # Vertical strides
                 lr_patch = tf.reshape(lr_patches[0, j, l], (1, f_sub_lr, f_sub_lr, 1))
                 hr_patch = tf.reshape(hr_patches[0, j, l], (1, f_sub_hr, f_sub_hr, 1))
-                #if size == batch_size:
-                    #yield tf.concat(x, 0) / tf.keras.backend.max(x), tf.concat(y, 0) / tf.keras.backend.max(y)
-                #    x.clear()
-                #    y.clear()
-                #    size = 0
-                #else:
+                # if size == batch_size:
+                #     yield tf.concat(x, 0) / tf.keras.backend.max(x), tf.concat(y, 0) / tf.keras.backend.max(y)
+                #     x.clear()
+                #     y.clear()
+                #     size = 0
+                # else:
                 x.append(lr_patch)
                 y.append(hr_patch)
                 #    size += 1
@@ -112,7 +115,7 @@ def put_togeheter_patches(patches, patches_shape, f_sub):
 
 def psnr(y, p):
     ps = tf.image.psnr(y, p, max_val=1.0)
-    #ps[tf.math.is_inf(ps)] = 0
+    # ps[tf.math.is_inf(ps)] = 0
     return ps
 
 
@@ -227,9 +230,9 @@ print("Number of parameters (PReLU not included):", param_count)
 # Upscaling factor: 3x = f_sub_lr=7, f_sub_hr=19
 # Upscaling factor: 4x = f_sub_lr=6, f_sub_hr=21
 
-#save_augmented_data(image91_path, save_folder="dataset/T91-aug")
-#x, y = generator("dataset/General-100-aug/", batch_size=1, f_sub_lr=f_sub_lr, f_sub_hr=f_sub_hr, k=patch_stride, upscaling=upscaling)
-#np.savez("data", x=x, y=y)
+# save_augmented_data(image91_path, save_folder="dataset/T91-aug")
+# x, y = generator("dataset/General-100-aug/", batch_size=1, f_sub_lr=f_sub_lr, f_sub_hr=f_sub_hr, k=patch_stride, upscaling=upscaling)
+# np.savez("data", x=x, y=y)
 
 dat = np.load("data.npz")
 x = dat['x']
@@ -254,7 +257,7 @@ lr = tf.image.resize(tf.identity(hr), (new_h, new_w), method=tf.image.ResizeMeth
 print(lr.shape)
 tf.keras.preprocessing.image.save_img(path="lr.bmp", x=lr)
 patches, patches_shape = extract_patches(lr, f_sub_lr)
-#print(patches.shape)
+# print(patches.shape)
 
 patches_pred = fsrcnn.predict(patches)
 image = put_togeheter_patches(patches_pred, patches_shape, f_sub_hr)
