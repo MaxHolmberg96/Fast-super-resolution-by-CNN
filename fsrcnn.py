@@ -241,7 +241,7 @@ x = np.delete(x, indices, 0)
 y = np.delete(y, indices, 0)
 
 
-fsrcnn.fit(x, y, epochs=1, batch_size=32, validation_data=(val_x, val_y))
+fsrcnn.fit(x, y, epochs=10, batch_size=32, validation_data=(val_x, val_y))
 fsrcnn.evaluate(val_x, val_y)
 
 
