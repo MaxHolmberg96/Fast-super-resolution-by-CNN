@@ -1,0 +1,4 @@
+# This is not used I think, as we use here f_sub_lr = a and then f_sub_hr = a * upscaling
+# Upscaling factor: 2x = f_sub_lr=10, f_sub_hr=19
+# Upscaling factor: 3x = f_sub_lr=7, f_sub_hr=19
+# Upscaling factor: 4x = f_sub_lr=6, f_sub_hr=21
