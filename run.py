@@ -7,7 +7,6 @@ Paths
 checkpoint_path = "training_checkpoints/cp.ckpt"
 data_path = "data.npz"
 
-
 """
 Hyperparameters for the model
 """
@@ -26,15 +25,24 @@ checkpoint_dir = os.path.dirname(checkpoint_path)
 cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
                                                  save_weights_only=True,
                                                  verbose=1)
-fsrcnn = FSRCNN(input_shape=(f_sub_lr, f_sub_lr, 1), d=56, s=12, m=4, upscaling=upscaling)
-# fsrcnn = FSRCNN(input_shape=(f_sub_lr, f_sub_lr, 1), d=32, s=5, m=1, upscaling=upscaling)
+
+
+config = [
+    (56, 12, 4),
+    (32, 5, 1)
+]
+config_to_run = 0
+fsrcnn = FSRCNN(input_shape=(f_sub_lr, f_sub_lr, 1),
+                d=config[config_to_run][0],
+                s=config[config_to_run][1],
+                m=config[config_to_run][2],
+                upscaling=upscaling)
 
 fsrcnn.summary()
 param_count = 0
 for i in range(0, len(fsrcnn.layers), 2):
     param_count += fsrcnn.layers[i].count_params()
 print("Number of parameters (PReLU not included):", param_count)
-
 
 dat = np.load(data_path)
 x = dat['x']
