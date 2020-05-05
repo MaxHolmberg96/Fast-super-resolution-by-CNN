@@ -1,5 +1,5 @@
 *.DS_Store
-data.npz
+data_backup.npz
 hr.bmp
 lr.bmp
 lr_pred.bmp

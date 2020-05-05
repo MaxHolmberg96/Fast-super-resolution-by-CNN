@@ -1,11 +1,13 @@
 from data import *
 from fsrcnn import *
+import matplotlib.pyplot as plt
 
 """
 Paths
 """
 checkpoint_path = "training_checkpoints/cp.ckpt"
-data_path = "data.npz"
+data_path = "data_T91_stride4.npz"
+val_data_path = "data_g100_n=x3_f_sub_lr=7_f_sub_hr=21.npz"
 
 """
 Hyperparameters for the model
@@ -13,10 +15,10 @@ Hyperparameters for the model
 upscaling = 3
 f_sub_lr = 7
 f_sub_hr = f_sub_lr * upscaling
-patch_stride = 4
-nr_validation_samples = 70000
-batch_size = 32
-epochs = 3
+#patch_stride = 4
+nr_validation_samples = 10000
+batch_size = 128
+epochs = 100
 config = [
     (56, 12, 4),
     (32, 5, 1)
@@ -45,20 +47,30 @@ print("Number of parameters (PReLU not included):", param_count)
 dat = np.load(data_path)
 x = dat['x']
 y = dat['y']
-indices = np.random.choice(np.arange(x.shape[0]), nr_validation_samples)
-val_x = x[indices]
-val_y = y[indices]
-x = np.delete(x, indices, 0)
-y = np.delete(y, indices, 0)
+
+val_dat = np.load(val_data_path)
+
+#indices = np.random.choice(np.arange(x.shape[0]), nr_validation_samples)
+
+#val_x = x[indices]
+#val_y = y[indices]
+val_x = val_dat['x']
+val_y = val_dat['y']
+val_indices = np.random.choice(np.arange(val_x.shape[0]), nr_validation_samples)
+val_x = val_x[val_indices]
+val_y = val_y[val_indices]
+
+#x = np.delete(x, indices, 0)
+#y = np.delete(y, indices, 0)
 fsrcnn.load_weights(checkpoint_path)
-fsrcnn.fit(x=x,
+history = fsrcnn.fit(x=x,
            y=y,
            epochs=epochs,
            batch_size=batch_size,
            validation_data=(val_x, val_y),
            callbacks=[cp_callback],
            shuffle=True)
-#fsrcnn.evaluate(val_x, val_y)
+fsrcnn.evaluate(val_x, val_y)
 
 img = tf.keras.preprocessing.image.load_img("dataset/General-100/im_8.bmp", color_mode="grayscale")
 hr = tf.keras.preprocessing.image.img_to_array(img)
@@ -75,3 +87,11 @@ image = fsrcnn.predict(tf.expand_dims(lr, 0))
 #image = put_togeheter_patches(patches_pred, patches_shape, f_sub_hr)
 #print(image.shape)
 tf.keras.preprocessing.image.save_img(path="upscaled_lr.bmp", x=image[0])
+
+#print(f"{history.epoch} <- history")
+#print(f"{history.history} <- history")
+xs = np.arange(len(history.history['loss']))
+plt.plot(xs, history.history['loss'], label="loss")
+plt.plot(xs, history.history['val_loss'], label="val_loss")
+plt.legend()
+plt.show()
