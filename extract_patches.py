@@ -14,6 +14,6 @@ args = vars(ap.parse_args())
 x, y = generator(dataset_folder=args['path'],
                  f_sub_lr=args['f_sub_lr'],
                  f_sub_hr=args['f_sub_hr'],
-                 k=args['patch_stride'],
+                 k=args['stride'],
                  upscaling=args['upscaling'])
 np.savez("data", x=x, y=y)
