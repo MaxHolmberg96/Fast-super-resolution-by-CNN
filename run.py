@@ -64,7 +64,7 @@ y = dat['y']
 
 val_dat = np.load(val_data_path)
 val_x = val_dat['x']
-val_y = val_dat['y']#eh?
+val_y = val_dat['y']
 
 #fsrcnn.load_weights(checkpoint_path)
 history = fsrcnn.fit(x=x,
