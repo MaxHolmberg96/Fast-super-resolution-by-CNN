@@ -7,6 +7,7 @@ Packages:
 """
 
 import tensorflow as tf
+from custom_sgd import *
 MAX_PIXEL_VALUE = tf.constant(1.0)
 
 def psnr(y, p):
@@ -102,7 +103,7 @@ def FSRCNN(input_shape, d, s, m, upscaling):
         )
     )
 
-    sgd = tf.keras.optimizers.SGD(learning_rate=1e-3)
+    sgd = SGD(learning_rate=1e-3)
     model.compile(optimizer=sgd, loss="mean_squared_error", metrics=[psnr])
     model.build()
 
