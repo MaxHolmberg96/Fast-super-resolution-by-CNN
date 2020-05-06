@@ -16,7 +16,7 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
+from tensorflow import constant
 from tensorflow.python.framework import ops
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.ops import array_ops
@@ -26,7 +26,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export("keras.optimizers.SGD")
-class SGD(optimizer_v2.OptimizerV2):
+class CustomSGD(optimizer_v2.OptimizerV2):
   """Stochastic gradient descent and momentum optimizer.
 
   Computes:
@@ -61,7 +61,8 @@ class SGD(optimizer_v2.OptimizerV2):
   """
 
   def __init__(self,
-               learning_rate=0.01,
+               learning_rate=1e-3,
+               learning_rate_deconv=1e-4,
                momentum=0.0,
                nesterov=False,
                name="SGD",
@@ -81,10 +82,10 @@ class SGD(optimizer_v2.OptimizerV2):
         allow time inverse decay of learning rate. `lr` is included for backward
         compatibility, recommended to use `learning_rate` instead.
     """
-    super(SGD, self).__init__(name, **kwargs)
+    super(CustomSGD, self).__init__(name, **kwargs)
     self._set_hyper("learning_rate", kwargs.get("lr", learning_rate))
+    self._set_hyper("learning_rate_deconv", learning_rate_deconv)
     self._set_hyper("decay", self._initial_decay)
-
     self._momentum = False
     if isinstance(momentum, ops.Tensor) or callable(momentum) or momentum > 0:
       self._momentum = True
@@ -100,7 +101,7 @@ class SGD(optimizer_v2.OptimizerV2):
         self.add_slot(var, "momentum")
 
   def _prepare_local(self, var_device, var_dtype, apply_state):
-    super(SGD, self)._prepare_local(var_device, var_dtype, apply_state)
+    super(CustomSGD, self)._prepare_local(var_device, var_dtype, apply_state)
     apply_state[(var_device, var_dtype)]["momentum"] = array_ops.identity(
         self._get_hyper("momentum", var_dtype))
 
@@ -121,15 +122,15 @@ class SGD(optimizer_v2.OptimizerV2):
           use_nesterov=self.nesterov)
     else:
       lr = coefficients["lr_t"]
-      if str(var.name).find("tranpose"):
-          lr = 1e-4
+      if str(var.name).find("transpose") != -1:
+        lr = constant(self._serialize_hyperparameter("learning_rate_deconv"))
       return training_ops.resource_apply_gradient_descent(
-          var.handle, lr, grad, use_locking=self._use_locking)
+            var.handle, lr, grad, use_locking=self._use_locking)
 
   def _resource_apply_sparse_duplicate_indices(self, grad, var, indices,
                                                **kwargs):
     if self._momentum:
-      return super(SGD, self)._resource_apply_sparse_duplicate_indices(
+      return super(CustomSGD, self)._resource_apply_sparse_duplicate_indices(
           grad, var, indices, **kwargs)
     else:
       var_device, var_dtype = var.device, var.dtype.base_dtype
@@ -157,9 +158,10 @@ class SGD(optimizer_v2.OptimizerV2):
         use_nesterov=self.nesterov)
 
   def get_config(self):
-    config = super(SGD, self).get_config()
+    config = super(CustomSGD, self).get_config()
     config.update({
         "learning_rate": self._serialize_hyperparameter("learning_rate"),
+        "learning_rate_deconv": self._serialize_hyperparameter("learning_rate_deconv"),
         "decay": self._serialize_hyperparameter("decay"),
         "momentum": self._serialize_hyperparameter("momentum"),
         "nesterov": self.nesterov,

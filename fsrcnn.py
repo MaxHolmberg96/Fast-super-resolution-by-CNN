@@ -103,7 +103,7 @@ def FSRCNN(input_shape, d, s, m, upscaling):
         )
     )
 
-    sgd = SGD(learning_rate=1e-3)
+    sgd = CustomSGD(learning_rate=1e-3, learning_rate_deconv=1e-10)
     model.compile(optimizer=sgd, loss="mean_squared_error", metrics=[psnr])
     model.build()
 
