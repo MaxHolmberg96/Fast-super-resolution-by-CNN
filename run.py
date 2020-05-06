@@ -18,7 +18,7 @@ f_sub_hr = f_sub_lr * upscaling
 #patch_stride = 4
 nr_validation_samples = 10000
 batch_size = 128
-epochs = 100
+epochs = 600
 config = [
     (56, 12, 4),
     (32, 5, 1)
