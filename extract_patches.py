@@ -16,4 +16,9 @@ x, y = generator(dataset_folder=args['path'],
                  f_sub_hr=args['f_sub_hr'],
                  k=args['stride'],
                  upscaling=args['upscaling'])
-np.savez("data", x=x, y=y)
+np.savez(args['output_path'], x=x, y=y)
+#python extract_patches.py -path "[augmented_data]" -output_path "" -f_sub_lr 7 -f_sub_hr 21 -stride 4 -upscaling 3
+#mv data.npz data_T91_f_sub_lr=7_f_sub_hr=21_stride=4_upscaling=3.npz
+#python extract_patches.py -path "[val_data]" -output_path "" -f_sub_lr 7 -f_sub_hr 21 -stride 4 -upscaling 3
+#mv data.npz data_BSD500_20images_f_sub_lr=7_f_sub_hr=21_stride=4_upscaling=3.npz
+
