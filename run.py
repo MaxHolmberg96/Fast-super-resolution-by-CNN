@@ -11,6 +11,7 @@ ap.add_argument("-f_sub_lr", "--f_sub_lr", required=True, type=int, help="Size o
 ap.add_argument("-f_sub_hr", "--f_sub_hr", required=True, type=int, help="Size of hr patches")
 ap.add_argument("-stride", "--stride", required=True, type=int, help="Stride of patches")
 ap.add_argument("-upscaling", "--upscaling", required=True, type=int, help="Upscaling factor")
+ap.add_argument("-init_epoch", "--init_epoch", required=True, type=int, help="Start epoch step for Tensorboard, useful for saving and loading")
 args = vars(ap.parse_args())
 
 """
@@ -23,6 +24,7 @@ val_data_path = args['val_path']
 """
 Hyperparameters for the model
 """
+init_epoch = args['init_epoch']
 upscaling = args['upscaling']
 f_sub_lr = args['f_sub_lr']
 f_sub_hr = args['f_sub_hr']
@@ -72,4 +74,4 @@ history = fsrcnn.fit(x=x,
            epochs=epochs,
            validation_data=(val_x, val_y),
            batch_size=batch_size,
-           callbacks=[cp_callback, tensorboard_callback])
+           callbacks=[cp_callback, tensorboard_callback], initial_epoch=init_epoch)
