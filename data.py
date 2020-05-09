@@ -90,3 +90,44 @@ def put_togeheter_patches(patches, patches_shape, f_sub):
             image[i * f_sub: (i + 1) * f_sub, j * f_sub: (j + 1) * f_sub] = p_reshape[:, :, 0]
             count += 1
     return image
+
+
+def modcrop(image, scale=3):
+    if len(image.shape) == 3:
+        h, w, _ = image.shape
+        h = h - np.mod(h, scale)
+        w = w - np.mod(w, scale)
+        image = image[0:h, 0:w, :]
+    else:
+        h, w = image.shape
+        h = h - np.mod(h, scale)
+        w = w - np.mod(w, scale)
+        image = image[0:h, 0:w]
+    return image
+
+
+def evaluate_on_dataset(fsrcnn, dataset, upscaling, should_extract_patches=False, f_sub_lr=0, f_sub_hr=0, k=0):
+    psnr = []
+    if should_extract_patches:
+        x, y = generator(dataset, f_sub_lr, f_sub_hr, k, upscaling)
+        res = fsrcnn.evaluate(x, y)
+        psnr.append(res[1])
+        return tf.reduce_mean(psnr)
+    data_dir = pathlib.Path(dataset)
+    _, extension = os.path.splitext(os.listdir(data_dir)[3])
+    for i in tqdm(data_dir.glob(f"*{extension}")):
+        img = tf.keras.preprocessing.image.load_img(str(i), color_mode="grayscale")
+        hr = tf.keras.preprocessing.image.img_to_array(img)
+        hr = modcrop(hr, scale=upscaling)
+        h, w, _ = hr.shape
+        new_w = int(w / upscaling)
+        new_h = int(h / upscaling)
+        lr = tf.image.resize(tf.identity(hr), (new_h, new_w), method=tf.image.ResizeMethod.BICUBIC)
+        lr = tf.expand_dims(lr, 0)
+        hr = tf.expand_dims(hr, 0)
+        x = hr / np.max(hr)
+        y = lr / np.max(lr)
+        res = fsrcnn.evaluate(x, y)
+        psnr.append(res[1])
+    return tf.reduce_mean(psnr)
+
