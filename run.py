@@ -1,5 +1,6 @@
 from data import *
 from fsrcnn import *
+import datetime
 import argparse
 
 ap = argparse.ArgumentParser()
@@ -35,15 +36,23 @@ config = [
     (32, 5, 1)
 ]
 config_to_run = 0
+
 """
 Create checkpoint callback
 """
-class TensorBoard_callback(tf.keras.callbacks.TensorBoard):
+class custom_callback(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
-        super().on_epoch_end(epoch, logs)
-        super_res = self.model.predict(lr)
+        print(logs.keys())
         with train_summary_writer.as_default():
-            tf.summary.image('Superres', super_res, step=epoch)
+            tf.summary.scalar("MSE", logs['loss'], step=epoch)
+            tf.summary.scalar("VAL_MSE", logs['val_loss'], step=epoch)
+            tf.summary.scalar("PSNR", logs['psnr'], step=epoch)
+            tf.summary.scalar("VAL_PSNR", logs['val_psnr'], step=epoch)
+        for i, show_image in enumerate(show_images):
+            pred = self.model.predict(show_image)
+            with image_summary_writer.as_default():
+                tf.summary.image(str(i), tf.concat(hr_and_bicubic[i] + [pred], 0), step=epoch)
+
 
 
 checkpoint_dir = os.path.dirname(checkpoint_path)
@@ -51,24 +60,34 @@ cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
                                                  save_weights_only=True,
                                                  verbose=1)
 
-tensorboard_callback = TensorBoard_callback(
-    log_dir='tensorboard_logs',
-    histogram_freq=5
-)
-
+image_summary_writer = tf.summary.create_file_writer('tensorboard_logs/images/')
+current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+train_log_dir = 'tensorboard_logs/' + current_time + '/train'
+train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 """
 Should load more images with a function from the validation set which we can show in TensorBoard
 """
-train_summary_writer = tf.summary.create_file_writer('tensorboard_logs/images/')
-img = tf.keras.preprocessing.image.load_img('./dataset/Set5/baby_GT.bmp', color_mode="grayscale")
-hr = tf.keras.preprocessing.image.img_to_array(img)
-h, w, _ = hr.shape
-lr = tf.expand_dims(
-    tf.image.resize(
-        tf.identity(hr), (h // upscaling, w // upscaling), method=tf.image.ResizeMethod.BICUBIC
-    ),
-    0,
-)
+data_dir = pathlib.Path("dataset/Set5/")
+hr_and_bicubic = []
+show_images = []
+_, extension = os.path.splitext(os.listdir(data_dir)[3])
+for file in tqdm(data_dir.glob(f"*{extension}")):
+    img = tf.keras.preprocessing.image.load_img(str(file), color_mode="grayscale")
+    hr = tf.keras.preprocessing.image.img_to_array(img)
+    h, w, _ = hr.shape
+    lr = tf.expand_dims(
+        tf.image.resize(
+            tf.identity(hr), (h // upscaling, w // upscaling), method=tf.image.ResizeMethod.BICUBIC
+        ),
+        0,
+    )
+    hr /= np.max(hr)
+    hr = tf.expand_dims(modcrop(hr, upscaling), 0)
+    lr /= np.max(lr)
+    show_images.append(lr)
+    bicubic = tf.image.resize(lr[0], (lr.shape[1] * upscaling, lr.shape[2] * upscaling), method=tf.image.ResizeMethod.BICUBIC)
+    hr_and_bicubic.append([hr, tf.expand_dims(bicubic, 0)])
+
 
 # Making the model
 fsrcnn = FSRCNN(input_shape=(f_sub_lr, f_sub_lr, 1),
@@ -93,12 +112,11 @@ val_dat = np.load(val_data_path)
 val_x = val_dat['x']
 val_y = val_dat['y']
 
-fsrcnn.load_weights(checkpoint_path)
 history = fsrcnn.fit(x=x,
                      y=y,
                      epochs=epochs,
                      validation_data=(val_x, val_y),
                      batch_size=batch_size,
-                     callbacks=[cp_callback, tensorboard_callback],
+                     callbacks=[cp_callback, custom_callback()],
                      initial_epoch=init_epoch
-                     )
+)
