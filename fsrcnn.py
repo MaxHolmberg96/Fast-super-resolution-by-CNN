@@ -8,12 +8,7 @@ Packages:
 
 import tensorflow as tf
 from custom_sgd import *
-MAX_PIXEL_VALUE = tf.constant(1.0)
-
-def psnr(y, p):
-    ps = tf.image.psnr(y, p, max_val=1.0)
-    #ps[tf.math.is_inf(ps)] = 0
-    return ps
+import pickle
 
 
 def FSRCNN(input_shape, d, s, m, upscaling):
@@ -27,6 +22,7 @@ def FSRCNN(input_shape, d, s, m, upscaling):
     the He initializer.
     """
     model = tf.keras.models.Sequential()
+    bias = True
     """
     The first convolution is the Feature Extraction which is denoted Conv(5, d, 1) in the paper. Channels = 1 is
     automatically set to one because the input has 1 channel.
@@ -38,7 +34,7 @@ def FSRCNN(input_shape, d, s, m, upscaling):
             kernel_size=5,
             padding="same",
             data_format="channels_last",
-            use_bias=False,
+            use_bias=bias,
             kernel_initializer=tf.keras.initializers.he_normal(),
         )
     )
@@ -51,7 +47,7 @@ def FSRCNN(input_shape, d, s, m, upscaling):
             filters=s,
             kernel_size=1,
             padding="same",
-            use_bias=False,
+            use_bias=bias,
             kernel_initializer=tf.keras.initializers.he_normal(),
         )
     )
@@ -66,7 +62,7 @@ def FSRCNN(input_shape, d, s, m, upscaling):
                 filters=s,
                 kernel_size=3,
                 padding="same",
-                use_bias=False,
+                use_bias=bias,
                 kernel_initializer=tf.keras.initializers.he_normal(),
             )
         )
@@ -81,7 +77,7 @@ def FSRCNN(input_shape, d, s, m, upscaling):
             filters=d,
             kernel_size=1,
             padding="same",
-            use_bias=False,
+            use_bias=bias,
             kernel_initializer=tf.keras.initializers.he_normal(),
         )
     )
@@ -98,13 +94,13 @@ def FSRCNN(input_shape, d, s, m, upscaling):
             kernel_size=9,
             strides=(upscaling, upscaling),
             padding="same",
-            use_bias=False,
+            use_bias=bias,
             kernel_initializer=tf.random_normal_initializer(mean=0.0, stddev=0.001),
         )
     )
 
     #sgd = CustomSGD(learning_rate=1e-3/2, learning_rate_deconv=1e-4/2)
-    model.compile(optimizer=tf.keras.optimizers.Adam(1e-3), loss="mean_squared_error", metrics=[psnr])
-    model.build()
+    #model.compile(optimizer=tf.keras.optimizers.Adam(1e-3), loss="mean_squared_error", metrics=[psnr])
+    #model.build()
 
     return model

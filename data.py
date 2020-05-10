@@ -8,6 +8,7 @@ import numpy as np
 def save_augmented_data(dataset, save_folder):
     data_dir = pathlib.Path(dataset)
     _, extension = os.path.splitext(os.listdir(data_dir)[3])
+    print(extension)
     for i in tqdm(data_dir.glob(f"*{extension}")):
         # Use grayscale because it is equivalent to first channel of yuv
         img = tf.keras.preprocessing.image.load_img(str(i), color_mode="grayscale")
@@ -25,7 +26,7 @@ def save_augmented_data(dataset, save_folder):
                     name = str(i).split("/")[2].split(".")[0]
                 else:
                     name = str(i).split("\\")[2].split(".")[0]
-                tf.keras.preprocessing.image.save_img(f"{save_folder}/{name}_rot={rot*90}_scale={scale}.{extension}", x=hr)
+                tf.keras.preprocessing.image.save_img(f"{save_folder}/{name}_rot={rot*90}_scale={scale}{extension}", x=hr)
 
 
 def generator(dataset_folder, f_sub_lr, f_sub_hr, k, upscaling):
