@@ -5,8 +5,8 @@ Packages:
     pip install tqdm
     pip install -q pyyaml h5py
 """
-
 import tensorflow as tf
+tf.config.experimental.set_visible_devices([], 'GPU')
 from custom_sgd import *
 import pickle
 
@@ -98,9 +98,6 @@ def FSRCNN(input_shape, d, s, m, upscaling):
             kernel_initializer=tf.random_normal_initializer(mean=0.0, stddev=0.001),
         )
     )
-
-    #sgd = CustomSGD(learning_rate=1e-3/2, learning_rate_deconv=1e-4/2)
-    #model.compile(optimizer=tf.keras.optimizers.Adam(1e-3), loss="mean_squared_error", metrics=[psnr])
-    #model.build()
+    model.build()
 
     return model
