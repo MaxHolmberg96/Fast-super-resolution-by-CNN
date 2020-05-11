@@ -3,15 +3,17 @@ import pathlib
 from tqdm import tqdm
 import os
 import numpy as np
+import cv2
 
 
 def save_augmented_data(dataset, save_folder):
     data_dir = pathlib.Path(dataset)
     _, extension = os.path.splitext(os.listdir(data_dir)[3])
-    print(extension)
     for i in tqdm(data_dir.glob(f"*{extension}")):
         # Use grayscale because it is equivalent to first channel of yuv
-        img = tf.keras.preprocessing.image.load_img(str(i), color_mode="grayscale")
+        img = cv2.imread(str(i)) #cv2 uses bgr as default: https://stackoverflow.com/a/39316695
+        ycrcb_image = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
+        img = tf.expand_dims(ycrcb_image[:, :, 0], 2)
         for scale in [1, 0.9, 0.8, 0.7, 0.6]:
             for rot in range(4):
                 hr = tf.keras.preprocessing.image.img_to_array(img)
@@ -59,8 +61,8 @@ def generator(dataset_folder, f_sub_lr, f_sub_hr, k, upscaling):
         size = 0
         for j in range(lr_patches.shape[1]): # Horizontal strides
             for l in range(lr_patches.shape[2]): # Vertical strides
-                lr_patch = tf.reshape(lr_patches[0, j, l], (1, f_sub_lr, f_sub_lr, 1))
-                hr_patch = tf.reshape(hr_patches[0, j, l], (1, f_sub_hr, f_sub_hr, 1))
+                lr_patch = tf.reshape(lr_patches[0, j, l], (1, f_sub_lr, f_sub_lr, 1)).numpy()
+                hr_patch = tf.reshape(hr_patches[0, j, l], (1, f_sub_hr, f_sub_hr, 1)).numpy()
                 x.append(lr_patch)
                 y.append(hr_patch)
     print("Let's concatenate")
