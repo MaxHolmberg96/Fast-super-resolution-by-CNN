@@ -1,6 +1,13 @@
 *.DS_Store
+__pycache__
 data_backup.npz
 hr.bmp
 lr.bmp
 lr_pred.bmp
 T91-aug
+tensorboard_logs
+trained_checkpoints
+training_checkpoints
+*.jpg
+*.bmp
+*.npz
