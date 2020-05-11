@@ -6,8 +6,6 @@ Packages:
     pip install -q pyyaml h5py
 """
 import tensorflow as tf
-tf.config.experimental.set_visible_devices([], 'GPU')
-from custom_sgd import *
 import pickle
 
 
