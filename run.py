@@ -196,9 +196,14 @@ dat = np.load(data_path)
 x = dat['x']
 y = dat['y']
 
-set5 = np.load("set5_7_21_3_3.npz")
-set14 = np.load("set14_7_21_3_3.npz")
-BSD200 = np.load("BSD200_7_21_3_3.npz")
+set5_patches = np.load("set5_7_21_3_3.npz")
+set14_patches = np.load("set14_7_21_3_3.npz")
+BSD200_patches = np.load("BSD200_7_21_3_3.npz")
+
+set5 = pickle.load("set5.npz")
+set14 = pickle.load("set14.npz")
+BSD200 = pickle.load("BSD200.npz")
+
 
 val_dat = np.load(val_data_path)
 val_x = val_dat['x']
