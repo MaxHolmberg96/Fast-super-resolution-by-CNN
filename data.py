@@ -134,3 +134,31 @@ def evaluate_on_dataset(fsrcnn, dataset, upscaling, should_extract_patches=False
         psnr.append(res[1])
     return tf.reduce_mean(psnr)
 
+
+def create_npz_from_folder(dataset, save_folder, upscaling):
+    data_dir = pathlib.Path(dataset)
+    _, extension = os.path.splitext(os.listdir(data_dir)[3])
+    paths = np.array(list(data_dir.glob(f"*{extension}")))
+    x = []
+    y = []
+    for path in tqdm(paths):
+        img = cv2.imread(str(path))  # cv2 uses bgr as default: https://stackoverflow.com/a/39316695
+        ycrcb_image = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
+        img = tf.expand_dims(ycrcb_image[:, :, 0], 2)
+        hr = tf.keras.preprocessing.image.img_to_array(img)
+        h, w, _ = hr.shape
+        new_w = int(w / upscaling)
+        new_h = int(h / upscaling)
+        lr = tf.image.resize(tf.identity(hr), (new_h, new_w), method=tf.image.ResizeMethod.BICUBIC)
+        x.append(tf.expand_dims(hr, 0))
+
+    x = tf.concat(x, axis=0)
+    x /= tf.keras.backend.max(x)
+    y = tf.concat(y, axis=0)
+    y /= tf.keras.backend.max(y)
+    np.savez(save_folder, x=x, y=y)
+
+
+create_npz_from_folder("dataset/Set5", "Set5.npz", 3)
+create_npz_from_folder("dataset/Set14", "Set14.npz", 3)
+create_npz_from_folder("dataset/BSD200", "BSD200.npz", 3)

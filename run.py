@@ -2,6 +2,7 @@ from data import *
 from fsrcnn import *
 import datetime
 import argparse
+from custom_adam import *
 
 
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M")
@@ -179,9 +180,7 @@ fsrcnn = FSRCNN(
     upscaling=upscaling,
 )
 
-fsrcnn_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
-#fsrcnn_optimizer = CustomSGD(learning_rate=1e-3, learning_rate_deconv=1e-4)
-
+fsrcnn_optimizer = CustomAdam(learning_rate=1e-3)
 
 ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=fsrcnn_optimizer, net=fsrcnn)
 ckpt_manager = tf.train.CheckpointManager(ckpt, './tf_ckpts', max_to_keep=3)
@@ -196,6 +195,10 @@ print("Number of parameters (PReLU not included):", param_count)
 dat = np.load(data_path)
 x = dat['x']
 y = dat['y']
+
+set5 = np.load("set5_7_21_3_3.npz")
+set14 = np.load("set14_7_21_3_3.npz")
+BSD200 = np.load("BSD200_7_21_3_3.npz")
 
 val_dat = np.load(val_data_path)
 val_x = val_dat['x']
