@@ -4,6 +4,7 @@ from tqdm import tqdm
 import os
 import numpy as np
 import cv2
+import pickle
 
 
 def save_augmented_data(dataset, save_folder):
@@ -151,13 +152,15 @@ def create_pickle_from_folder(dataset, save_folder, upscaling):
         new_w = int(w / upscaling)
         new_h = int(h / upscaling)
         lr = tf.image.resize(tf.identity(hr), (new_h, new_w), method=tf.image.ResizeMethod.BICUBIC)
-        x.append(tf.expand_dims(hr, 0))
+        x.append(tf.expand_dims(lr, 0) / tf.keras.backend.max(lr))
+        y.append(tf.expand_dims(hr, 0) / tf.keras.backend.max(lr))
 
 
-    pickle.dump(x)
-    pickle.dump(y)
+
+    pickle.dump({'x': x, 'y': y}, open(save_folder, "wb"))
 
 
-#create_pickle_from_folder("dataset/Set5", "Set5.npz", 3)
-#create_pickle_from_folder("dataset/Set14", "Set14.npz", 3)
-#create_pickle_from_folder("dataset/BSD200", "BSD200.npz", 3)
+# save_augmented_data("dataset/Set14", "dataset/Set14-aug")
+# create_pickle_from_folder("dataset/Set5", "../Set5.p", 3)
+# create_pickle_from_folder("dataset/Set14", "../Set14.p", 3)
+# create_pickle_from_folder("dataset/BSD200", "../BSD200.p", 3)

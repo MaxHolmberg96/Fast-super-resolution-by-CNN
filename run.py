@@ -15,7 +15,7 @@ hyperparams = {
 }
 
 
-@tf.function
+@tf.function()
 def train_step(x, y):
     with tf.GradientTape() as g:
         mse = fsrcnn_loss(fsrcnn, x, y)
@@ -23,13 +23,13 @@ def train_step(x, y):
     fsrcnn_optimizer.apply_gradients(zip(gradients, fsrcnn.trainable_variables))
     return gradients
 
-@tf.function
+mse = tf.keras.losses.MeanSquaredError()
+# @tf.function()
 def fsrcnn_loss(model, x, y_true):
-    mse = tf.keras.losses.MeanSquaredError()
     y_pred = model(x)
     return mse(y_true, y_pred)
 
-@tf.function
+@tf.function(experimental_relax_shapes=True)
 def PSNR(model, x, y_true):
     y_pred = model(x)
     ps = tf.image.psnr(y_true, y_pred, max_val=1.0)
@@ -69,9 +69,18 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
                 val_loss = fsrcnn_loss(fsrcnn, val_x, val_y)
                 psnr = np.mean(PSNR(fsrcnn, batch_x, batch_y))
                 val_psnr = np.mean(PSNR(fsrcnn, val_x, val_y))
+                # test_psnr = 0
+                # for i in range(len(set5['x'])):
+                #     test_psnr += PSNR(fsrcnn, set5['x'][i], set5['y'][i])
+                # for i in range(len(set14['x'])):
+                #     test_psnr += PSNR(fsrcnn, set14['x'][i], set14['y'][i])
+                # for i in range(len(BSD200['x'])):
+                #     test_psnr += PSNR(fsrcnn, BSD200['x'][i], BSD200['y'][i])
+                # test_psnr = test_psnr[0] / 219
+
                 iterator.set_description("\nloss: {:.5f}, val_loss: {:.5f}, psnr: {:.5f}, val_psnr: {:.5f}".format(loss, val_loss, psnr, val_psnr))
                 # Write to tensorboard
-                write_batch_summaries(loss, val_loss, psnr, val_psnr, update_log_step)
+                write_batch_summaries(loss, val_loss, psnr, val_psnr, update_step)
                 update_log_step += 1
 
             offset += hyperparams['batch_size']
@@ -81,6 +90,14 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
         save_path = ckpt_manager.save()
         print("Saved checkpoint for step {}: {}".format(int(ckpt.step), save_path))
         write_epoch_summaries(grads, fsrcnn, epoch)
+
+        if epoch % 100 == 0:
+            test_psnr_patches = np.mean(PSNR(fsrcnn, set5_patches['x'], set5_patches['y']))
+            test_psnr_patches += np.mean(PSNR(fsrcnn, set14_patches['x'], set14_patches['y']))
+            test_psnr_patches += np.mean(PSNR(fsrcnn, BSD200_patches['x'], BSD200_patches['y']))
+            test_psnr_patches = test_psnr_patches / 3
+            with train_summary_writer.as_default():
+                tf.summary.scalar('Average test PSNR', test_psnr_patches, epoch)
 
         print('Time for epoch {} is {} sec'.format(epoch + 1, time.time() - start))
 
@@ -180,7 +197,7 @@ fsrcnn = FSRCNN(
     upscaling=upscaling,
 )
 
-fsrcnn_optimizer = CustomAdam(learning_rate=1e-3)
+fsrcnn_optimizer = CustomAdam(learning_rate=1e-3, learning_rate_deconv=1e-4)
 
 ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=fsrcnn_optimizer, net=fsrcnn)
 ckpt_manager = tf.train.CheckpointManager(ckpt, './tf_ckpts', max_to_keep=3)
@@ -196,13 +213,13 @@ dat = np.load(data_path)
 x = dat['x']
 y = dat['y']
 
-set5_patches = np.load("set5_7_21_3_3.npz")
-set14_patches = np.load("set14_7_21_3_3.npz")
-BSD200_patches = np.load("BSD200_7_21_3_3.npz")
+set5_patches = np.load("../set5_7_21_3_3.npz")
+set14_patches = np.load("../Set14_7_21_3_3.npz")
+BSD200_patches = np.load("../BSD200_7_21_3_3.npz")
 
-set5 = pickle.load("set5.npz")
-set14 = pickle.load("set14.npz")
-BSD200 = pickle.load("BSD200.npz")
+set5 = pickle.load(open("../Set5.p", "rb"))
+set14 = pickle.load(open("../Set14.p", "rb"))
+BSD200 = pickle.load(open("../BSD200.p", "rb"))
 
 
 val_dat = np.load(val_data_path)
