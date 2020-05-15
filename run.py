@@ -100,8 +100,12 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
 def write_epoch_summaries(grads, model, epoch):
     for i, show_image in enumerate(show_images):
         pred = model.predict(show_image)
+        pred = (pred * 255.).squeeze(0).squeeze(-1)
+        color_image = convert_ycbcr_to_rgb(np.array([pred, ycbcr_images[i][..., 1], ycbcr_images[i][..., 2]]).transpose([1, 2, 0]))
+        color_image = np.expand_dims(np.clip(color_image, 0.0, 255.0) / 255., 0)
         with image_summary_writer.as_default():
-            tf.summary.image(str(i), tf.concat(hr_and_bicubic[i] + [pred], 0), step=epoch)
+            tf.summary.image(str(i), tf.concat(hr_and_bicubic[i] + [color_image], 0), step=epoch)
+
 
     names = [model.layers[i].name for i in range(len(model.layers))]
     with train_summary_writer.as_default():
@@ -164,6 +168,7 @@ Prepare the tensorboard images
 data_dir = pathlib.Path("dataset/Set5/")
 hr_and_bicubic = []
 show_images = []
+ycbcr_images = []
 _, extension = os.path.splitext(os.listdir(data_dir)[3])
 for file in tqdm(data_dir.glob(f"*{extension}")):
     hr = Image.open(file).convert('RGB')
@@ -173,16 +178,16 @@ for file in tqdm(data_dir.glob(f"*{extension}")):
     lr_1 = hr.resize((hr_width // upscaling, hr_height // upscaling), resample=Image.BICUBIC)
     hr = np.array(hr_1).astype(np.float32)
     lr = np.array(lr_1).astype(np.float32)
-    hr = convert_rgb_to_y(hr)
     lr = convert_rgb_to_y(lr)
     hr /= 255.
     lr /= 255.
-    hr = np.expand_dims(hr, 2)
+    # hr = np.expand_dims(hr, 2)
     lr = np.expand_dims(lr, 2)
     show_images.append(np.expand_dims(lr, 0))
-    bicubic = convert_rgb_to_y(np.array(lr_1.resize((hr_width, hr_height), resample=Image.BICUBIC)).astype(np.float32))
+    bicubic = np.array(lr_1.resize((hr_width, hr_height), resample=Image.BICUBIC)).astype(np.float32)
+    ycbcr = convert_rgb_to_ycbcr(bicubic)
+    ycbcr_images.append(ycbcr)
     bicubic /= 255.
-    bicubic = np.expand_dims(bicubic, 2)
     hr_and_bicubic.append([np.expand_dims(hr, 0), np.expand_dims(bicubic, 0)])
 
 
@@ -213,14 +218,14 @@ with h5py.File(data_path, 'r') as f:
     x = np.expand_dims(x, 3) / 255.
     y = np.expand_dims(y, 3) / 255.
 
-with h5py.File("set5_7_21_3_3.h5") as f:
+with h5py.File("Set5_7_21_3_3.h5") as f:
     set5_patches = {}
     set5_patches['x'] = np.array(f['lr'])
     set5_patches['y'] = np.array(f['hr'])
     set5_patches['x'] = np.expand_dims(set5_patches['x'], 3) / 255.
     set5_patches['y'] = np.expand_dims(set5_patches['y'], 3) / 255.
 
-with h5py.File("set14_7_21_3_3.h5") as f:
+with h5py.File("Set14_7_21_3_3.h5") as f:
     set14_patches = {}
     set14_patches['x'] = np.array(f['lr'])
     set14_patches['y'] = np.array(f['hr'])
