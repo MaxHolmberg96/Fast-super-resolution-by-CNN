@@ -85,7 +85,7 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
         save_path = ckpt_manager.save()
         print("Saved checkpoint for step {}: {}".format(int(ckpt.step), save_path))
         write_epoch_summaries(grads, fsrcnn, epoch)
-        """
+
         if epoch % 100 == 0:
             test_psnr_patches = np.mean(PSNR(fsrcnn, set5_patches['x'], set5_patches['y']))
             test_psnr_patches += np.mean(PSNR(fsrcnn, set14_patches['x'], set14_patches['y']))
@@ -93,7 +93,7 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
             test_psnr_patches = test_psnr_patches / 3
             with train_summary_writer.as_default():
                 tf.summary.scalar('Average test PSNR', test_psnr_patches, epoch)
-        """
+
         print('Time for epoch {} is {} sec'.format(epoch + 1, time.time() - start))
 
 
@@ -211,7 +211,7 @@ with h5py.File(data_path, 'r') as f:
     y = np.array(f['hr'])
     x = np.expand_dims(x, 3) / 255.
     y = np.expand_dims(y, 3) / 255.
-"""
+
 with h5py.File("set5_7_21_3_3.h5") as f:
     set5_patches = {}
     set5_patches['x'] = np.array(f['lr'])
@@ -232,7 +232,7 @@ with h5py.File("BSD200_7_21_3_3.h5") as f:
     BSD200_patches['y'] = np.array(f['hr'])
     BSD200_patches['x'] = np.expand_dims(BSD200_patches['x'], 3) / 255.
     BSD200_patches['y'] = np.expand_dims(BSD200_patches['y'], 3) / 255.
-"""
+
 with h5py.File(val_data_path, 'r') as f:
     val_x = np.array(f['lr'])
     val_y = np.array(f['hr'])
