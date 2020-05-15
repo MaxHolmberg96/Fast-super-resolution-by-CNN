@@ -192,7 +192,7 @@ fsrcnn = FSRCNN(
 fsrcnn_optimizer = CustomAdam(learning_rate=tf.constant(1e-3, dtype=tf.float32), learning_rate_deconv=tf.constant(1e-4, dtype=tf.float32))
 
 ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=fsrcnn_optimizer, net=fsrcnn)
-ckpt_manager = tf.train.CheckpointManager(ckpt, './tf_ckpts_samuel', max_to_keep=3)
+ckpt_manager = tf.train.CheckpointManager(ckpt, './tf_ckpts', max_to_keep=3)
 
 fsrcnn.summary()
 param_count = 0
