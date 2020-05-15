@@ -98,15 +98,11 @@ def upscale_rgb(fsrcnn, image_folder, output_folder, upscaling):
         lr_1 = hr.resize((hr_width // upscaling, hr_height // upscaling), resample=Image.BICUBIC)
         hr = np.array(hr_1).astype(np.float32)
         lr = np.array(lr_1).astype(np.float32)
-        # hr = convert_rgb_to_y(hr)
-        hr /= 255.
-        lr /= 255.
         lr = np.expand_dims(lr, 2)
         hr = np.expand_dims(hr, 0)
         lr = np.expand_dims(lr, 0)
         bicubic = np.array(lr_1.resize((hr_width, hr_height), resample=Image.BICUBIC)).astype(np.float32)
         ycbcr = convert_rgb_to_ycbcr(bicubic)
-        bicubic /= 255.
 
 
         if str(file).find("\\") == -1:
@@ -114,29 +110,27 @@ def upscale_rgb(fsrcnn, image_folder, output_folder, upscaling):
         else:
             name = str(file).split("\\")[-1]
 
-        pred = fsrcnn.predict(convert_rgb_to_y(lr))
+        pred = fsrcnn.predict(convert_rgb_to_y(lr) / 255.)
         pred = (pred * 255.).squeeze(0).squeeze(-1)
         color_image = convert_ycbcr_to_rgb(np.array([pred, ycbcr[..., 1], ycbcr[..., 2]]).transpose([1, 2, 0]))
-        color_image = np.expand_dims(np.clip(color_image, 0.0, 255.0) / 255., 0)
+        color_image = np.clip(color_image, 0.0, 255.0)
 
-        color_image = color_image * 255.0
+        color_image = (color_image).astype(np.uint8)
         img = Image.fromarray(color_image)
         img.save(os.path.join(output_folder, "upscaled", name))
 
-        lr = np.squeeze(lr[0], 2) * 255.0
+        lr = (np.squeeze(lr[0], 2)).astype(np.uint8)
         img = Image.fromarray(lr)
         img.save(os.path.join(output_folder, "low_res", name))
 
-        hr = hr[0] * 255.0
+        hr = (hr[0]).astype(np.uint8)
         img = Image.fromarray(hr)
         img.save(os.path.join(output_folder, "original", name))
 
-        bicubic = bicubic * 255.0
+        bicubic = (bicubic).astype(np.uint8)
         img = Image.fromarray(bicubic)
         img.save(os.path.join(output_folder, "bicubic", name))
 
-        all = np.hstack([hr, bicubic, pred])
+        all = np.hstack([hr, bicubic, color_image])
         img = Image.fromarray(all)
         img.save(os.path.join(output_folder, "togheter", name))
-
-    f.close()
