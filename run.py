@@ -5,6 +5,7 @@ from fsrcnn import *
 import datetime
 import argparse
 from custom_adam import *
+from PIL import Image
 
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M")
 hyperparams = {
@@ -84,6 +85,7 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
         save_path = ckpt_manager.save()
         print("Saved checkpoint for step {}: {}".format(int(ckpt.step), save_path))
         write_epoch_summaries(grads, fsrcnn, epoch)
+        """
         if epoch % 100 == 0:
             test_psnr_patches = np.mean(PSNR(fsrcnn, set5_patches['x'], set5_patches['y']))
             test_psnr_patches += np.mean(PSNR(fsrcnn, set14_patches['x'], set14_patches['y']))
@@ -91,6 +93,7 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
             test_psnr_patches = test_psnr_patches / 3
             with train_summary_writer.as_default():
                 tf.summary.scalar('Average test PSNR', test_psnr_patches, epoch)
+        """
         print('Time for epoch {} is {} sec'.format(epoch + 1, time.time() - start))
 
 
@@ -163,21 +166,23 @@ hr_and_bicubic = []
 show_images = []
 _, extension = os.path.splitext(os.listdir(data_dir)[3])
 for file in tqdm(data_dir.glob(f"*{extension}")):
-    img = tf.keras.preprocessing.image.load_img(str(file), color_mode="grayscale")
-    hr = tf.keras.preprocessing.image.img_to_array(img)
-    h, w, _ = hr.shape
-    lr = tf.expand_dims(
-        tf.image.resize(
-            tf.identity(hr), (h // upscaling, w // upscaling), method=tf.image.ResizeMethod.BICUBIC
-        ),
-        0,
-    )
-    hr /= np.max(hr)
-    hr = tf.expand_dims(modcrop(hr, upscaling), 0)
-    lr /= np.max(lr)
-    show_images.append(lr)
-    bicubic = tf.image.resize(lr[0], (lr.shape[1] * upscaling, lr.shape[2] * upscaling), method=tf.image.ResizeMethod.BICUBIC)
-    hr_and_bicubic.append([hr, tf.expand_dims(bicubic, 0)])
+    hr = Image.open(file).convert('RGB')
+    hr_width = (hr.width // upscaling) * upscaling
+    hr_height = (hr.height // upscaling) * upscaling
+    hr_1 = hr.resize((hr_width, hr_height), resample=Image.BICUBIC)
+    lr_1 = hr.resize((hr_width // upscaling, hr_height // upscaling), resample=Image.BICUBIC)
+    hr = np.array(hr_1).astype(np.float32)
+    lr = np.array(lr_1).astype(np.float32)
+    hr = convert_rgb_to_y(hr)
+    lr = convert_rgb_to_y(lr)
+    hr /= 255.
+    lr /= 255.
+    hr = np.expand_dims(hr, 2)
+    lr = np.expand_dims(lr, 2)
+    show_images.append(np.expand_dims(lr, 0))
+    bicubic = convert_rgb_to_y(np.array(lr_1.resize((hr_width, hr_height), resample=Image.BICUBIC)).astype(np.float32))
+    bicubic = np.expand_dims(bicubic, 2)
+    hr_and_bicubic.append([np.expand_dims(hr, 0), tf.expand_dims(bicubic, 0)])
 
 
 # Making the model
@@ -206,7 +211,7 @@ with h5py.File(data_path, 'r') as f:
     y = np.array(f['hr'])
     x = np.expand_dims(x, 3) / 255.
     y = np.expand_dims(y, 3) / 255.
-
+"""
 with h5py.File("set5_7_21_3_3.h5") as f:
     set5_patches = {}
     set5_patches['x'] = np.array(f['lr'])
@@ -227,13 +232,15 @@ with h5py.File("BSD200_7_21_3_3.h5") as f:
     BSD200_patches['y'] = np.array(f['hr'])
     BSD200_patches['x'] = np.expand_dims(BSD200_patches['x'], 3) / 255.
     BSD200_patches['y'] = np.expand_dims(BSD200_patches['y'], 3) / 255.
-
+"""
 with h5py.File(val_data_path, 'r') as f:
     val_x = np.array(f['lr'])
     val_y = np.array(f['hr'])
     val_x = np.expand_dims(val_x, 3) / 255.
     val_y = np.expand_dims(val_y, 3) / 255.
 
+val_x = val_x[:20000]
+val_y = val_y[:20000]
 initial_log_step = 0
 if args['initial_log_step'] is not None:
     initial_log_step = args['initial_log_step']
