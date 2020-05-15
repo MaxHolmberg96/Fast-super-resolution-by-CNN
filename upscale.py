@@ -3,9 +3,9 @@ from PIL import Image
 import os
 from data import *
 from tqdm import tqdm
+from fsrcnn import psnr
 
 def upscale(fsrcnn, image_folder, output_folder, upscaling):
-    from run import PSNR
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
     if not os.path.exists(os.path.join(output_folder, "original")):
@@ -20,7 +20,7 @@ def upscale(fsrcnn, image_folder, output_folder, upscaling):
         os.makedirs(os.path.join(output_folder, "togheter"))
     dir = pathlib.Path(image_folder)
     _, extension = os.path.splitext(os.listdir(dir)[3])
-    psnr = []
+    psnrs = []
     for file in tqdm(dir.glob(f"*{extension}")):
         hr = Image.open(file).convert('RGB')
         hr_width = (hr.width // upscaling) * upscaling
@@ -43,7 +43,7 @@ def upscale(fsrcnn, image_folder, output_folder, upscaling):
 
 
         pred = fsrcnn.predict(lr)
-        psnr.append(PSNR(fsrcnn, lr, hr))
+        psnrs.append(psnr(y_pred=pred, y_true=hr, clip=False))
 
         pred = np.squeeze(pred[0], 2) * 255.0
         img = Image.fromarray(pred).convert("RGB")
@@ -72,7 +72,7 @@ def upscale(fsrcnn, image_folder, output_folder, upscaling):
 
 
     with open(os.path.join(output_folder, "psnr.txt"), "w") as f:
-        f.write(str(np.mean(psnr)))
+        f.write(str(np.mean(psnrs)))
     f.close()
 
 def upscale_rgb(fsrcnn, image_folder, output_folder, upscaling):

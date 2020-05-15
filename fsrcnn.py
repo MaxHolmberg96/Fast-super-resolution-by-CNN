@@ -6,8 +6,14 @@ Packages:
     pip install -q pyyaml h5py
 """
 import tensorflow as tf
+#tf.config.experimental.set_visible_devices([], 'GPU')
 import pickle
 
+def psnr(y_pred, y_true, clip=True):
+    ps = tf.image.psnr(y_true, y_pred, max_val=1.0)
+    if clip:
+        return tf.clip_by_value(ps, clip_value_min=0, clip_value_max=99.9)
+    return ps
 
 def FSRCNN(input_shape, d, s, m, upscaling):
     """
