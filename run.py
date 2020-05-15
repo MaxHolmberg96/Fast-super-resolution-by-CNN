@@ -1,10 +1,12 @@
+import h5py
+
 from data import *
 from fsrcnn import *
 import datetime
 import argparse
 from custom_adam import *
 
-
+#tf.keras.backend.set_floatx('float64')
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M")
 hyperparams = {
     'adam_alpha': 1e-3,
@@ -54,6 +56,7 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
             print("Initializing from scratch.")
     else:
         print("Initializing from scratch.")
+
     update_step = 0
     update_log_step = initial_log_step
     for epoch in range(epochs):
@@ -90,7 +93,7 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
         save_path = ckpt_manager.save()
         print("Saved checkpoint for step {}: {}".format(int(ckpt.step), save_path))
         write_epoch_summaries(grads, fsrcnn, epoch)
-
+        """
         if epoch % 100 == 0:
             test_psnr_patches = np.mean(PSNR(fsrcnn, set5_patches['x'], set5_patches['y']))
             test_psnr_patches += np.mean(PSNR(fsrcnn, set14_patches['x'], set14_patches['y']))
@@ -98,7 +101,7 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
             test_psnr_patches = test_psnr_patches / 3
             with train_summary_writer.as_default():
                 tf.summary.scalar('Average test PSNR', test_psnr_patches, epoch)
-
+        """
         print('Time for epoch {} is {} sec'.format(epoch + 1, time.time() - start))
 
 
@@ -197,10 +200,10 @@ fsrcnn = FSRCNN(
     upscaling=upscaling,
 )
 
-fsrcnn_optimizer = CustomAdam(learning_rate=1e-3, learning_rate_deconv=1e-4)
+fsrcnn_optimizer = CustomAdam(learning_rate=tf.constant(1e-3, dtype=tf.float32), learning_rate_deconv=tf.constant(1e-4, dtype=tf.float32))
 
 ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=fsrcnn_optimizer, net=fsrcnn)
-ckpt_manager = tf.train.CheckpointManager(ckpt, './tf_ckpts', max_to_keep=3)
+ckpt_manager = tf.train.CheckpointManager(ckpt, './tf_ckpts_samuel', max_to_keep=3)
 
 fsrcnn.summary()
 param_count = 0
@@ -209,18 +212,15 @@ for i in range(0, len(fsrcnn.layers), 2):
 print("Number of parameters (PReLU not included):", param_count)
 
 # Loading training and validation data
-dat = np.load(data_path)
-x = dat['x']
-y = dat['y']
+with h5py.File(data_path, 'r') as f:
+    x = np.array(f['lr'])
+    y = np.array(f['hr'])
+    x = np.expand_dims(x, 3) / 255.
+    y = np.expand_dims(y, 3) / 255.
 
-set5_patches = np.load("../set5_7_21_3_3.npz")
-set14_patches = np.load("../Set14_7_21_3_3.npz")
-BSD200_patches = np.load("../BSD200_7_21_3_3.npz")
-
-set5 = pickle.load(open("../Set5.p", "rb"))
-set14 = pickle.load(open("../Set14.p", "rb"))
-BSD200 = pickle.load(open("../BSD200.p", "rb"))
-
+set5_patches = np.load("set5_7_21_3_3.npz")
+set14_patches = np.load("Set14_7_21_3_3.npz")
+BSD200_patches = np.load("BSD200_7_21_3_3.npz")
 
 val_dat = np.load(val_data_path)
 val_x = val_dat['x']
