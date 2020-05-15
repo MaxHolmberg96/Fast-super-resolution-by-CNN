@@ -181,8 +181,9 @@ for file in tqdm(data_dir.glob(f"*{extension}")):
     lr = np.expand_dims(lr, 2)
     show_images.append(np.expand_dims(lr, 0))
     bicubic = convert_rgb_to_y(np.array(lr_1.resize((hr_width, hr_height), resample=Image.BICUBIC)).astype(np.float32))
+    bicubic /= 255.
     bicubic = np.expand_dims(bicubic, 2)
-    hr_and_bicubic.append([np.expand_dims(hr, 0), tf.expand_dims(bicubic, 0)])
+    hr_and_bicubic.append([np.expand_dims(hr, 0), np.expand_dims(bicubic, 0)])
 
 
 # Making the model
