@@ -95,8 +95,8 @@ def generate_2(dataset_folder, output_path, f_sub_lr, aug, upscaling):
                     tmp = hr.resize((int(hr.width * s), int(hr.height * s)), resample=Image.BICUBIC)
                     tmp = tmp.rotate(r, expand=True)
                     hr_images.append(tmp)
-            else:
-                hr_images.append(hr)
+        else:
+            hr_images.append(hr)
 
         for hr in hr_images:
             hr_width = (hr.width // upscaling) * upscaling

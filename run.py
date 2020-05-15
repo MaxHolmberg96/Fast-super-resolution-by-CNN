@@ -6,7 +6,6 @@ import datetime
 import argparse
 from custom_adam import *
 
-#tf.keras.backend.set_floatx('float64')
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M")
 hyperparams = {
     'adam_alpha': 1e-3,
@@ -72,14 +71,6 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
                 val_loss = fsrcnn_loss(fsrcnn, val_x, val_y)
                 psnr = np.mean(PSNR(fsrcnn, batch_x, batch_y))
                 val_psnr = np.mean(PSNR(fsrcnn, val_x, val_y))
-                # test_psnr = 0
-                # for i in range(len(set5['x'])):
-                #     test_psnr += PSNR(fsrcnn, set5['x'][i], set5['y'][i])
-                # for i in range(len(set14['x'])):
-                #     test_psnr += PSNR(fsrcnn, set14['x'][i], set14['y'][i])
-                # for i in range(len(BSD200['x'])):
-                #     test_psnr += PSNR(fsrcnn, BSD200['x'][i], BSD200['y'][i])
-                # test_psnr = test_psnr[0] / 219
 
                 iterator.set_description("\nloss: {:.5f}, val_loss: {:.5f}, psnr: {:.5f}, val_psnr: {:.5f}".format(loss, val_loss, psnr, val_psnr))
                 # Write to tensorboard
@@ -93,7 +84,6 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
         save_path = ckpt_manager.save()
         print("Saved checkpoint for step {}: {}".format(int(ckpt.step), save_path))
         write_epoch_summaries(grads, fsrcnn, epoch)
-        """
         if epoch % 100 == 0:
             test_psnr_patches = np.mean(PSNR(fsrcnn, set5_patches['x'], set5_patches['y']))
             test_psnr_patches += np.mean(PSNR(fsrcnn, set14_patches['x'], set14_patches['y']))
@@ -101,7 +91,6 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
             test_psnr_patches = test_psnr_patches / 3
             with train_summary_writer.as_default():
                 tf.summary.scalar('Average test PSNR', test_psnr_patches, epoch)
-        """
         print('Time for epoch {} is {} sec'.format(epoch + 1, time.time() - start))
 
 
@@ -222,9 +211,11 @@ set5_patches = np.load("set5_7_21_3_3.npz")
 set14_patches = np.load("Set14_7_21_3_3.npz")
 BSD200_patches = np.load("BSD200_7_21_3_3.npz")
 
-val_dat = np.load(val_data_path)
-val_x = val_dat['x']
-val_y = val_dat['y']
+with h5py.File(val_data_path, 'r') as f:
+    val_x = np.array(f['lr'])
+    val_y = np.array(f['hr'])
+    val_x = np.expand_dims(val_x, 3) / 255.
+    val_y = np.expand_dims(val_y, 3) / 255.
 
 initial_log_step = 0
 if args['initial_log_step'] is not None:
