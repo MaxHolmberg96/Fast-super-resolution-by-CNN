@@ -34,7 +34,7 @@ def fsrcnn_loss(model, x, y_true):
 def PSNR(model, x, y_true):
     y_pred = model(x)
     ps = tf.image.psnr(y_true, y_pred, max_val=1.0)
-    return tf.clip_by_value(ps, clip_value_min=0, clip_value_max=99.9)
+    return tf.clip_by_value(ps, clip_value_min=0, clip_value_max=200.9)
 
 
 def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_step=0):
@@ -207,9 +207,26 @@ with h5py.File(data_path, 'r') as f:
     x = np.expand_dims(x, 3) / 255.
     y = np.expand_dims(y, 3) / 255.
 
-set5_patches = np.load("set5_7_21_3_3.npz")
-set14_patches = np.load("Set14_7_21_3_3.npz")
-BSD200_patches = np.load("BSD200_7_21_3_3.npz")
+with h5py.File("set5_7_21_3_3.h5") as f:
+    set5_patches = {}
+    set5_patches['x'] = np.array(f['lr'])
+    set5_patches['y'] = np.array(f['hr'])
+    set5_patches['x'] = np.expand_dims(set5_patches['x'], 3) / 255.
+    set5_patches['y'] = np.expand_dims(set5_patches['y'], 3) / 255.
+
+with h5py.File("set14_7_21_3_3.h5") as f:
+    set14_patches = {}
+    set14_patches['x'] = np.array(f['lr'])
+    set14_patches['y'] = np.array(f['hr'])
+    set14_patches['x'] = np.expand_dims(set14_patches['x'], 3) / 255.
+    set14_patches['y'] = np.expand_dims(set14_patches['y'], 3) / 255.
+
+with h5py.File("BSD200_7_21_3_3.h5") as f:
+    BSD200_patches = {}
+    BSD200_patches['x'] = np.array(f['lr'])
+    BSD200_patches['y'] = np.array(f['hr'])
+    BSD200_patches['x'] = np.expand_dims(BSD200_patches['x'], 3) / 255.
+    BSD200_patches['y'] = np.expand_dims(BSD200_patches['y'], 3) / 255.
 
 with h5py.File(val_data_path, 'r') as f:
     val_x = np.array(f['lr'])
