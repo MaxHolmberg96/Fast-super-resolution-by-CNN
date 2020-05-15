@@ -16,6 +16,8 @@ def upscale(fsrcnn, image_folder, output_folder, upscaling):
         os.makedirs(os.path.join(output_folder, "upscaled"))
     if not os.path.exists(os.path.join(output_folder, "bicubic")):
         os.makedirs(os.path.join(output_folder, "bicubic"))
+    if not os.path.exists(os.path.join(output_folder, "togheter")):
+        os.makedirs(os.path.join(output_folder, "togheter"))
     dir = pathlib.Path(image_folder)
     _, extension = os.path.splitext(os.listdir(dir)[3])
     psnr = []
@@ -42,17 +44,28 @@ def upscale(fsrcnn, image_folder, output_folder, upscaling):
 
         pred = fsrcnn.predict(lr)
         psnr.append(PSNR(fsrcnn, lr, hr))
-        img = Image.fromarray(np.squeeze(pred[0], 2) * 255.0).convert("RGB")
+
+        pred = np.squeeze(pred[0], 2) * 255.0
+        img = Image.fromarray(pred).convert("RGB")
         img.save(os.path.join(output_folder, "upscaled", str(file).split("\\")[-1]))
 
-        img = Image.fromarray(np.squeeze(lr[0], 2) * 255.0).convert("RGB")
+        lr = np.squeeze(lr[0], 2) * 255.0
+        img = Image.fromarray(lr).convert("RGB")
         img.save(os.path.join(output_folder, "low_res", str(file).split("\\")[-1]))
 
-        img = Image.fromarray(np.squeeze(hr[0], 2) * 255.0).convert("RGB")
+        hr = np.squeeze(hr[0], 2) * 255.0
+        img = Image.fromarray(hr).convert("RGB")
         img.save(os.path.join(output_folder, "original", str(file).split("\\")[-1]))
 
-        img = Image.fromarray(np.squeeze(bicubic, 2) * 255.0).convert("RGB")
+        bicubic = np.squeeze(bicubic, 2) * 255.0
+        img = Image.fromarray(bicubic).convert("RGB")
         img.save(os.path.join(output_folder, "bicubic", str(file).split("\\")[-1]))
+
+        all = np.hstack([hr, bicubic, pred])
+        img = Image.fromarray(all).convert("RGB")
+        img.save(os.path.join(output_folder, "togheter", str(file).split("\\")[-1]))
+
+
 
     with open(os.path.join(output_folder, "psnr.txt"), "w") as f:
         f.write(str(np.mean(psnr)))
