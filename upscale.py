@@ -20,7 +20,7 @@ def upscale_large(fsrcnn, image_folder, output_folder, upscaling, rgb=True):
         else:
             name = str(file).split("\\")[-1]
         img = upscale_image(fsrcnn, file, upscaling, rgb, downsample=False)
-        img.save(os.path.join(output_folder, name))
+        img[0].save(os.path.join(output_folder, name))
 
 
 def upscale(fsrcnn, image_folder, output_folder, upscaling, rgb=True):
@@ -120,3 +120,45 @@ def upscale_image(fsrcnn, file, upscaling, rgb=True, downsample=True):
     psnr_bicubic = psnr(y_pred=np.array(img_bicubic) / 255.0, y_true=np.array(img_hr) / 255.0, clip=False)
 
     return img_pred, img_lr, img_hr, img_bicubic, img_all, (psnr_pred, psnr_bicubic)
+
+
+def psnr_given_two_paths(path1, path2, upscaling):
+    img1 = Image.open(path1).convert("RGB")
+    img2 = Image.open(path2).convert("RGB")
+
+    hr_width = (img1.width // upscaling) * upscaling
+    hr_height = (img1.height // upscaling) * upscaling
+    img1 = img1.resize((hr_width, hr_height), resample=Image.BICUBIC)
+
+    hr_width = (img2.width // upscaling) * upscaling
+    hr_height = (img2.height // upscaling) * upscaling
+    img2 = img2.resize((hr_width, hr_height), resample=Image.BICUBIC)
+
+    img1 = np.array(img1).astype(np.float32)
+    img1 = convert_rgb_to_y(img1) / 255.0
+
+    img2 = np.array(img2).astype(np.float32)
+    img2 = convert_rgb_to_y(img2) / 255.0
+
+    return psnr(y_pred=np.array(np.expand_dims(img1, 2)), y_true=np.array(np.expand_dims(img2, 2)), clip=False)
+
+def psnr_given_two_folders(folder1, folder2, upscaling):
+    dir = pathlib.Path(folder1)
+    _, extension = os.path.splitext(os.listdir(dir)[0])
+    list1 = list(dir.glob(f"*{extension}"))
+    dir = pathlib.Path(folder2)
+    _, extension = os.path.splitext(os.listdir(dir)[0])
+    list2 = list(dir.glob(f"*{extension}"))
+    p = []
+    for file1, file2 in tqdm(zip(list1, list2)):
+        p.append(psnr_given_two_paths(file1, file2, upscaling))
+    return np.mean(p)
+
+
+
+def resize_modcrop(path, output, upscaling):
+    hr = Image.open(path).convert("RGB")
+    hr_width = (hr.width // upscaling) * upscaling
+    hr_height = (hr.height // upscaling) * upscaling
+    hr = hr.resize((hr_width, hr_height), resample=Image.BICUBIC)
+    hr.save(output)
