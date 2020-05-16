@@ -1,8 +1,11 @@
-import pathlib
-from PIL import Image
 import os
-from data import *
+import pathlib
+
+import numpy as np
+from PIL import Image
 from tqdm import tqdm
+
+from data import convert_rgb_to_y, convert_rgb_to_ycbcr, convert_ycbcr_to_rgb
 from fsrcnn import psnr
 
 
@@ -54,7 +57,7 @@ def upscale(fsrcnn, image_folder, output_folder, upscaling, rgb=True):
 
 
 def upscale_image(fsrcnn, file, upscaling, rgb=True, downsample=True):
-    hr = Image.open(file).convert('RGB')
+    hr = Image.open(file).convert("RGB")
     hr_width = (hr.width // upscaling) * upscaling
     hr_height = (hr.height // upscaling) * upscaling
     hr_1 = hr.resize((hr_width, hr_height), resample=Image.BICUBIC)
@@ -66,13 +69,15 @@ def upscale_image(fsrcnn, file, upscaling, rgb=True, downsample=True):
     lr = np.expand_dims(lr, 0)
     if downsample:
         bicubic = np.array(lr_1.resize((hr_width, hr_height), resample=Image.BICUBIC)).astype(np.float32)
-        pred = fsrcnn.predict(convert_rgb_to_y(lr) / 255.)
-        pred = (pred * 255.).squeeze(0).squeeze(-1)
+        pred = fsrcnn.predict(convert_rgb_to_y(lr) / 255.0)
+        pred = (pred * 255.0).squeeze(0).squeeze(-1)
         lr = np.squeeze(lr[0], 2)
     else:
-        bicubic = np.array(hr_1.resize((hr_width * upscaling, hr_height * upscaling), resample=Image.BICUBIC)).astype(np.float32)
-        pred = fsrcnn.predict(convert_rgb_to_y(np.expand_dims(hr, 3)) / 255.)
-        pred = (pred * 255.).squeeze(0).squeeze(-1)
+        bicubic = np.array(hr_1.resize((hr_width * upscaling, hr_height * upscaling), resample=Image.BICUBIC)).astype(
+            np.float32
+        )
+        pred = fsrcnn.predict(convert_rgb_to_y(np.expand_dims(hr, 3)) / 255.0)
+        pred = (pred * 255.0).squeeze(0).squeeze(-1)
 
     if rgb:
         ycbcr = convert_rgb_to_ycbcr(bicubic)
@@ -80,7 +85,7 @@ def upscale_image(fsrcnn, file, upscaling, rgb=True, downsample=True):
         color_image = np.clip(color_image, 0.0, 255.0).astype(np.uint8)
         img_pred = Image.fromarray(color_image)
         if not downsample:
-            return img_pred
+            return img_pred, bicubic
 
         lr = lr.astype(np.uint8)
         img_lr = Image.fromarray(lr)
@@ -96,7 +101,7 @@ def upscale_image(fsrcnn, file, upscaling, rgb=True, downsample=True):
     else:
         img_pred = Image.fromarray(pred).convert("RGB")
         if not downsample:
-            return img_pred
+            return img_pred, bicubic
 
         lr = convert_rgb_to_y(lr)
         img_lr = Image.fromarray(lr).convert("RGB")
@@ -109,6 +114,6 @@ def upscale_image(fsrcnn, file, upscaling, rgb=True, downsample=True):
 
         all = np.hstack([hr, bicubic, pred])
         img_all = Image.fromarray(all).convert("RGB")
-    psnr_image = psnr(y_pred=np.array(img_pred) / 255., y_true=np.array(img_hr) / 255., clip=False)
+    psnr_image = psnr(y_pred=np.array(img_pred) / 255.0, y_true=np.array(img_hr) / 255.0, clip=False)
 
     return img_pred, img_lr, img_hr, img_bicubic, img_all, psnr_image

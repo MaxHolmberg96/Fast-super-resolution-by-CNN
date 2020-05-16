@@ -11,3 +11,5 @@ training_checkpoints
 *.jpg
 *.bmp
 *.npz
+*.h5
+tf_ckpts
