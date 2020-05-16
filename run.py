@@ -100,7 +100,7 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
         print("Saved checkpoint for step {}: {}".format(int(ckpt.step), save_path))
         write_epoch_summaries(grads, fsrcnn, epoch)
 
-        if epoch % 25 == 0:
+        if epoch % 50 == 0:
             test_psnr_patches = np.mean(PSNR(fsrcnn, set5_patches["x"], set5_patches["y"]))
             test_psnr_patches += np.mean(PSNR(fsrcnn, set14_patches["x"], set14_patches["y"]))
             test_psnr_patches += np.mean(PSNR(fsrcnn, BSD200_patches["x"], BSD200_patches["y"]))
