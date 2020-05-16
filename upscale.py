@@ -38,21 +38,23 @@ def upscale(fsrcnn, image_folder, output_folder, upscaling, rgb=True):
         os.makedirs(os.path.join(output_folder, "togheter"))
     dir = pathlib.Path(image_folder)
     _, extension = os.path.splitext(os.listdir(dir)[0])
-    psnrs = []
+    psnr_pred = []
+    psnr_bicubic = []
     for file in tqdm(dir.glob(f"*{extension}")):
         if str(file).find("\\") == -1:
             name = str(file).split("/")[-1]
         else:
             name = str(file).split("\\")[-1]
-        img_pred, img_lr, img_hr, img_bicubic, img_all, psnr_image = upscale_image(fsrcnn, file, upscaling, rgb)
-        psnrs.append(psnr_image)
+        img_pred, img_lr, img_hr, img_bicubic, img_all, psnr_images = upscale_image(fsrcnn, file, upscaling, rgb)
+        psnr_pred.append(psnr_images[0])
+        psnr_bicubic.append(psnr_images[1])
         img_pred.save(os.path.join(output_folder, "upscaled", name))
         img_lr.save(os.path.join(output_folder, "low_res", name))
         img_hr.save(os.path.join(output_folder, "original", name))
         img_bicubic.save(os.path.join(output_folder, "bicubic", name))
         img_all.save(os.path.join(output_folder, "togheter", name))
         with open(os.path.join(output_folder, "psnr.txt"), "w") as f:
-            f.write(str(np.mean(psnrs)))
+            f.write("Predicted psnr: " + str(np.mean(psnr_pred)) + "\nBicubic psnr: " + str(np.mean(psnr_bicubic)))
         f.close()
 
 
@@ -114,6 +116,7 @@ def upscale_image(fsrcnn, file, upscaling, rgb=True, downsample=True):
 
         all = np.hstack([hr, bicubic, pred])
         img_all = Image.fromarray(all).convert("RGB")
-    psnr_image = psnr(y_pred=np.array(img_pred) / 255.0, y_true=np.array(img_hr) / 255.0, clip=False)
+    psnr_pred = psnr(y_pred=np.array(img_pred) / 255.0, y_true=np.array(img_hr) / 255.0, clip=False)
+    psnr_bicubic = psnr(y_pred=np.array(img_bicubic) / 255.0, y_true=np.array(img_hr) / 255.0, clip=False)
 
-    return img_pred, img_lr, img_hr, img_bicubic, img_all, psnr_image
+    return img_pred, img_lr, img_hr, img_bicubic, img_all, (psnr_pred, psnr_bicubic)
