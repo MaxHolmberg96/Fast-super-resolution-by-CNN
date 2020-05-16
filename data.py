@@ -179,3 +179,59 @@ def create_pickle_from_folder(dataset, save_folder, upscaling):
 # create_pickle_from_folder("dataset/Set5", "../Set5.p", 3)
 # create_pickle_from_folder("dataset/Set14", "../Set14.p", 3)
 # create_pickle_from_folder("dataset/BSD200", "../BSD200.p", 3)
+
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
+    from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
+    from mpl_toolkits.axes_grid1.inset_locator import mark_inset
+    from matplotlib.transforms import Bbox
+    from upscale import upscale_image
+    from fsrcnn import FSRCNN
+    from custom_adam import CustomAdam
+    from PIL import Image
+
+
+    def show_patch(img, x1, x2, y1, y2, zoom, loc, loc1, loc2):
+        fig, ax = plt.subplots(figsize=[5, 4])
+        plt.gca().set_axis_off()
+        plt.subplots_adjust(top=1, bottom=0, right=1, left=0,
+                            hspace=0, wspace=0)
+        plt.margins(0, 0)
+        plt.gca().xaxis.set_major_locator(plt.NullLocator())
+        plt.gca().yaxis.set_major_locator(plt.NullLocator())
+        extent = [0, img.width, 0, img.height]
+        ax.imshow(img, extent=extent)
+        axins = zoomed_inset_axes(ax, zoom=zoom, loc=loc)  # zoom = 6
+        axins.imshow(img, extent=extent, interpolation="nearest")
+        # sub region of the original image
+        axins.set_xlim(x1 * img.width, x2 * img.width)
+        axins.set_ylim(y1 * img.height, y2 * img.height)
+        plt.xticks(visible=False)
+        plt.yticks(visible=False)
+        # draw a bbox of the region of the inset axes in the parent axes and
+        # connecting lines between the bbox and the inset axes area
+        mark_inset(ax, axins, loc1=loc1, loc2=loc2, fc="none", ec="0.5")
+        plt.axis("off")
+        ax.axis("off")
+        #plt.draw()
+
+    # prepare the demo image
+    fsrcnn = FSRCNN(input_shape=(7, 7, 1), d=56, s=12, m=4, upscaling=3)
+    fsrcnn_optimizer = CustomAdam(
+        learning_rate=tf.constant(1e-3, dtype=tf.float32), learning_rate_deconv=tf.constant(1e-4, dtype=tf.float32)
+    )
+
+    ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=fsrcnn_optimizer, net=fsrcnn)
+    ckpt_manager = tf.train.CheckpointManager(ckpt, "./tf_ckpts_3757_epochs", max_to_keep=3)
+    ckpt.restore(ckpt_manager.latest_checkpoint)
+    dir = pathlib.Path("dataset/Set5")
+    _, extension = os.path.splitext(os.listdir(dir)[0])
+    files = list(dir.glob(f"*{extension}"))
+    file = files[2]
+    #for file in tqdm():
+    name = "butterfly.png"
+    img_pred, _, img_hr, img_bicubic, _, _ = upscale_image(fsrcnn, file, 3)
+    show_patch(img_bicubic, x1=0.10, x2=0.30, y1=0.65, y2=0.85, zoom=2, loc=4, loc1=1, loc2=3)
+    plt.savefig("results/bicubic_result_" + name, type="png", bbox_inches="tight", pad_inches=0, dpi=127.5)
