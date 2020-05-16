@@ -19,7 +19,7 @@ def upscale(fsrcnn, image_folder, output_folder, upscaling):
     if not os.path.exists(os.path.join(output_folder, "togheter")):
         os.makedirs(os.path.join(output_folder, "togheter"))
     dir = pathlib.Path(image_folder)
-    _, extension = os.path.splitext(os.listdir(dir)[3])
+    _, extension = os.path.splitext(os.listdir(dir)[0])
     psnrs = []
     for file in tqdm(dir.glob(f"*{extension}")):
         hr = Image.open(file).convert('RGB')
@@ -75,6 +75,27 @@ def upscale(fsrcnn, image_folder, output_folder, upscaling):
         f.write(str(np.mean(psnrs)))
     f.close()
 
+def upscale_large(fsrcnn, image_folder, output_folder, upscaling):
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    dir = pathlib.Path(image_folder)
+    _, extension = os.path.splitext(os.listdir(dir)[0])
+    for file in tqdm(dir.glob(f"*{extension}")):
+        hr = Image.open(file).convert('RGB')
+        hr = np.array(hr).astype(np.float32)
+        hr = convert_rgb_to_y(hr)
+        hr /= 255.
+        hr = np.expand_dims(hr, 2)
+        hr = np.expand_dims(hr, 0)
+        pred = fsrcnn.predict(hr)
+        pred = np.squeeze(pred[0], 2) * 255.0
+        img = Image.fromarray(pred).convert("RGB")
+        if str(file).find("\\") == -1:
+            name = str(file).split("/")[-1]
+        else:
+            name = str(file).split("\\")[-1]
+        img.save(os.path.join(output_folder, name))
+
 def upscale_rgb(fsrcnn, image_folder, output_folder, upscaling):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -89,7 +110,7 @@ def upscale_rgb(fsrcnn, image_folder, output_folder, upscaling):
     if not os.path.exists(os.path.join(output_folder, "togheter")):
         os.makedirs(os.path.join(output_folder, "togheter"))
     dir = pathlib.Path(image_folder)
-    _, extension = os.path.splitext(os.listdir(dir)[3])
+    _, extension = os.path.splitext(os.listdir(dir)[0])
     for file in tqdm(dir.glob(f"*{extension}")):
         hr = Image.open(file).convert('RGB')
         hr_width = (hr.width // upscaling) * upscaling
