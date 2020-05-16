@@ -6,7 +6,7 @@ import pathlib
 import h5py
 import numpy as np
 import tensorflow as tf
-import tqdm
+from tqdm import tqdm
 from PIL import Image
 
 import data
