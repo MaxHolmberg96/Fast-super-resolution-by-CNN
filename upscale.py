@@ -16,8 +16,8 @@ def upscale_large(fsrcnn, image_folder, output_folder, upscaling, rgb=True):
             name = str(file).split("/")[-1]
         else:
             name = str(file).split("\\")[-1]
-        img = upscale_image(fsrcnn, file, upscaling, rgb)
-        img[0].save(os.path.join(output_folder, name))
+        img = upscale_image(fsrcnn, file, upscaling, rgb, downsample=False)
+        img.save(os.path.join(output_folder, name))
 
 
 def upscale(fsrcnn, image_folder, output_folder, upscaling, rgb=True):
@@ -53,7 +53,7 @@ def upscale(fsrcnn, image_folder, output_folder, upscaling, rgb=True):
         f.close()
 
 
-def upscale_image(fsrcnn, file, upscaling, rgb=True):
+def upscale_image(fsrcnn, file, upscaling, rgb=True, downsample=True):
     hr = Image.open(file).convert('RGB')
     hr_width = (hr.width // upscaling) * upscaling
     hr_height = (hr.height // upscaling) * upscaling
@@ -64,17 +64,23 @@ def upscale_image(fsrcnn, file, upscaling, rgb=True):
     lr = np.expand_dims(lr, 2)
     hr = np.expand_dims(hr, 0)
     lr = np.expand_dims(lr, 0)
-    bicubic = np.array(lr_1.resize((hr_width, hr_height), resample=Image.BICUBIC)).astype(np.float32)
-    ycbcr = convert_rgb_to_ycbcr(bicubic)
-
-    pred = fsrcnn.predict(convert_rgb_to_y(lr) / 255.)
-    pred = (pred * 255.).squeeze(0).squeeze(-1)
-    lr = np.squeeze(lr[0], 2)
+    if downsample:
+        bicubic = np.array(lr_1.resize((hr_width, hr_height), resample=Image.BICUBIC)).astype(np.float32)
+        pred = fsrcnn.predict(convert_rgb_to_y(lr) / 255.)
+        pred = (pred * 255.).squeeze(0).squeeze(-1)
+        lr = np.squeeze(lr[0], 2)
+    else:
+        bicubic = np.array(hr_1.resize((hr_width * upscaling, hr_height * upscaling), resample=Image.BICUBIC)).astype(np.float32)
+        pred = fsrcnn.predict(convert_rgb_to_y(np.expand_dims(hr, 3)) / 255.)
+        pred = (pred * 255.).squeeze(0).squeeze(-1)
 
     if rgb:
+        ycbcr = convert_rgb_to_ycbcr(bicubic)
         color_image = convert_ycbcr_to_rgb(np.array([pred, ycbcr[..., 1], ycbcr[..., 2]]).transpose([1, 2, 0]))
         color_image = np.clip(color_image, 0.0, 255.0).astype(np.uint8)
         img_pred = Image.fromarray(color_image)
+        if not downsample:
+            return img_pred
 
         lr = lr.astype(np.uint8)
         img_lr = Image.fromarray(lr)
@@ -89,6 +95,8 @@ def upscale_image(fsrcnn, file, upscaling, rgb=True):
         img_all = Image.fromarray(all)
     else:
         img_pred = Image.fromarray(pred).convert("RGB")
+        if not downsample:
+            return img_pred
 
         lr = convert_rgb_to_y(lr)
         img_lr = Image.fromarray(lr).convert("RGB")
