@@ -24,7 +24,8 @@ python run.py -epochs 15 [-include_test] -train_path "T91_x3.h5" -val_path "BSD5
 ```
 To resume training
 ```
-python run.py -epochs 15 -continue -weights weights_x3 [-include_test] -train_path "T91_x3.h5" -val_path "BSD500_x3.h5" -f_sub_lr 7 -upscaling 3 -batch_size 128 ```
+python run.py -epochs 15 -continue -weights weights_x3 [-include_test] -train_path "T91_x3.h5" -val_path "BSD500_x3.h5" -f_sub_lr 7 -upscaling 3 -batch_size 128 
+```
 
 
 
