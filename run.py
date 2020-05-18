@@ -17,7 +17,6 @@ current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M")
 hyperparams = {
     "adam_alpha": 1e-3,
     "update_losses": 1000,
-    "weights_folder": "weights_folder/",
     "logs_images_folder": "tensorboard_logs/" + current_time + "_images/",
     "logs_scalar_folder": "tensorboard_logs/" + current_time + "/train",
 }
@@ -48,7 +47,7 @@ def PSNR(model, x, y_true):
     return tf.clip_by_value(ps, clip_value_min=0, clip_value_max=99.9)
 
 
-def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_step=0):
+def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True):
     import time
     from tqdm import tqdm
 
@@ -68,7 +67,6 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
         print("Initializing from scratch.")
 
     update_step = 0
-    update_log_step = initial_log_step
     for epoch in range(epochs):
         start = time.time()
         offset = 0
@@ -90,7 +88,6 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
                 )
                 # Write to tensorboard
                 write_batch_summaries(loss, val_loss, psnr, val_psnr, update_step)
-                update_log_step += 1
 
             offset += hyperparams["batch_size"]
             update_step += 1
@@ -100,7 +97,7 @@ def train(x, y, val_x, val_y, epochs, ckpt_manager, shuffle=True, initial_log_st
         print("Saved checkpoint for step {}: {}".format(int(ckpt.step), save_path))
         write_epoch_summaries(grads, fsrcnn, epoch)
 
-        if epoch % 50 == 0:
+        if args['include_test'] and epoch % 50 == 0:
             test_psnr_patches = np.mean(PSNR(fsrcnn, set5_patches["x"], set5_patches["y"]))
             test_psnr_patches += np.mean(PSNR(fsrcnn, set14_patches["x"], set14_patches["y"]))
             test_psnr_patches += np.mean(PSNR(fsrcnn, BSD200_patches["x"], BSD200_patches["y"]))
@@ -154,12 +151,12 @@ ap.add_argument("-val_path", "--val_path", required=True, help="Path to the vali
 ap.add_argument("-batch_size", "--batch_size", required=False, type=int, default=64, help="Batch size during training")
 ap.add_argument("-epochs", "--epochs", required=False, type=int, default=100, help="Number of epochs")
 ap.add_argument("-f_sub_lr", "--f_sub_lr", required=False, type=int, default=7, help="Size of lr patches")
-ap.add_argument("-f_sub_hr", "--f_sub_hr", required=False, type=int, default=21, help="Size of hr patches")
 ap.add_argument("-upscaling", "--upscaling", required=False, type=int, default=3, help="Upscaling factor")
-ap.add_argument(
-    "-initial_log_step", "--initial_log_step", required=False, type=int, default=0, help="Where to start the log step"
-)
+ap.add_argument("-fast", "--fast", required=False, action="store_true", help="Set this if you want to train FSRCNN-s")
+ap.add_argument("-weights", "--weights", required=False, help="path to the weights to use")
 ap.add_argument("-continue", "--continue", required=False, action="store_true", help="If we want to continue training")
+ap.add_argument("-include_test", "--include_test", required=False, action="store_true",
+                help="If we want to output test images (Set5) in tensorboard while training")
 args = vars(ap.parse_args())
 
 """
@@ -170,11 +167,11 @@ val_data_path = args["val_path"]
 hyperparams["batch_size"] = args["batch_size"]
 upscaling = args["upscaling"]
 f_sub_lr = args["f_sub_lr"]
-f_sub_hr = args["f_sub_hr"]
+f_sub_hr = f_sub_lr * args["upscaling"]
 batch_size = args["batch_size"]
 epochs = args["epochs"]
 config = [(56, 12, 4), (32, 5, 1)]
-config_to_run = 0
+config_to_run = 1 if args['fast'] else 0
 image_summary_writer = tf.summary.create_file_writer(hyperparams["logs_images_folder"])
 train_summary_writer = tf.summary.create_file_writer(hyperparams["logs_scalar_folder"])
 
@@ -209,7 +206,6 @@ for file in tqdm(data_dir.glob(f"*{extension}")):
 
 # Making the model
 fsrcnn = FSRCNN(
-    input_shape=(f_sub_lr, f_sub_lr, 1),
     d=config[config_to_run][0],
     s=config[config_to_run][1],
     m=config[config_to_run][2],
@@ -222,7 +218,7 @@ fsrcnn_optimizer = CustomAdam(
 )
 
 ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=fsrcnn_optimizer, net=fsrcnn)
-ckpt_manager = tf.train.CheckpointManager(ckpt, "./tf_ckpts", max_to_keep=3)
+ckpt_manager = tf.train.CheckpointManager(ckpt, args["weights"], max_to_keep=3)
 
 fsrcnn.summary()
 param_count = 0
@@ -237,37 +233,32 @@ with h5py.File(data_path, "r") as f:
     x = np.expand_dims(x, 3) / 255.0
     y = np.expand_dims(y, 3) / 255.0
 
-with h5py.File("Set5_7_21_3_3.h5") as f:
-    set5_patches = {}
-    set5_patches["x"] = np.array(f["lr"])
-    set5_patches["y"] = np.array(f["hr"])
-    set5_patches["x"] = np.expand_dims(set5_patches["x"], 3) / 255.0
-    set5_patches["y"] = np.expand_dims(set5_patches["y"], 3) / 255.0
-
-with h5py.File("Set14_7_21_3_3.h5") as f:
-    set14_patches = {}
-    set14_patches["x"] = np.array(f["lr"])
-    set14_patches["y"] = np.array(f["hr"])
-    set14_patches["x"] = np.expand_dims(set14_patches["x"], 3) / 255.0
-    set14_patches["y"] = np.expand_dims(set14_patches["y"], 3) / 255.0
-
-with h5py.File("BSD200_7_21_3_3.h5") as f:
-    BSD200_patches = {}
-    BSD200_patches["x"] = np.array(f["lr"])
-    BSD200_patches["y"] = np.array(f["hr"])
-    BSD200_patches["x"] = np.expand_dims(BSD200_patches["x"], 3) / 255.0
-    BSD200_patches["y"] = np.expand_dims(BSD200_patches["y"], 3) / 255.0
-
 with h5py.File(val_data_path, "r") as f:
     val_x = np.array(f["lr"])
     val_y = np.array(f["hr"])
     val_x = np.expand_dims(val_x, 3) / 255.0
     val_y = np.expand_dims(val_y, 3) / 255.0
 
-val_x = val_x
-val_y = val_y
-initial_log_step = 0
-if args["initial_log_step"] is not None:
-    initial_log_step = args["initial_log_step"]
+if args['include_test']:
+    with h5py.File("Set5_7_21_3_3.h5") as f:
+        set5_patches = {}
+        set5_patches["x"] = np.array(f["lr"])
+        set5_patches["y"] = np.array(f["hr"])
+        set5_patches["x"] = np.expand_dims(set5_patches["x"], 3) / 255.0
+        set5_patches["y"] = np.expand_dims(set5_patches["y"], 3) / 255.0
 
-train(x, y, val_x, val_y, args["epochs"], ckpt_manager, initial_log_step=initial_log_step)
+    with h5py.File("Set14_7_21_3_3.h5") as f:
+        set14_patches = {}
+        set14_patches["x"] = np.array(f["lr"])
+        set14_patches["y"] = np.array(f["hr"])
+        set14_patches["x"] = np.expand_dims(set14_patches["x"], 3) / 255.0
+        set14_patches["y"] = np.expand_dims(set14_patches["y"], 3) / 255.0
+
+    with h5py.File("BSD200_7_21_3_3.h5") as f:
+        BSD200_patches = {}
+        BSD200_patches["x"] = np.array(f["lr"])
+        BSD200_patches["y"] = np.array(f["hr"])
+        BSD200_patches["x"] = np.expand_dims(BSD200_patches["x"], 3) / 255.0
+        BSD200_patches["y"] = np.expand_dims(BSD200_patches["y"], 3) / 255.0
+
+train(x, y, val_x, val_y, args["epochs"], ckpt_manager)
