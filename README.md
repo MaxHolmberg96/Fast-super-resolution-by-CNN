@@ -22,7 +22,7 @@ To train from scratch
 ```
 python run.py -epochs 15 [-include_test] -train_path "T91_x3.h5" -val_path "BSD500_x3.h5" -f_sub_lr 7 -upscaling 3 -batch_size 128
 ```
-To resume training
+To resume training (pretrained weights for upscaling factor of 3 and 4 are included in weights_x3 and weights_x4)
 ```
 python run.py -epochs 15 -continue -weights weights_x3 [-include_test] -train_path "T91_x3.h5" -val_path "BSD500_x3.h5" -f_sub_lr 7 -upscaling 3 -batch_size 128 
 ```
