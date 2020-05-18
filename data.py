@@ -6,33 +6,11 @@ import numpy as np
 import cv2
 import pickle
 
+"""
+Code for pre-processing for this project is heavily adapted from https://github.com/yjn870/FSRCNN-pytorch
+"""
 
-def save_augmented_data(dataset, save_folder):
-    data_dir = pathlib.Path(dataset)
-    _, extension = os.path.splitext(os.listdir(data_dir)[3])
-    for i in tqdm(data_dir.glob(f"*{extension}")):
-        # Use grayscale because it is equivalent to first channel of yuv
-        img = cv2.imread(str(i))  # cv2 uses bgr as default: https://stackoverflow.com/a/39316695
-        ycrcb_image = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
-        img = tf.expand_dims(ycrcb_image[:, :, 0], 2)
-        for scale in [1, 0.9, 0.8, 0.7, 0.6]:
-            for rot in range(4):
-                hr = tf.keras.preprocessing.image.img_to_array(img, dtype=tf.float64)
-                hr = tf.image.rot90(hr, k=rot)
-                h, w, _ = hr.shape
-                hr = tf.image.resize(
-                    tf.identity(hr), (int(scale * h), int(scale * w)), method=tf.image.ResizeMethod.BICUBIC
-                )
-                if str(i).find("\\") == -1:
-                    name = str(i).split("/")[2].split(".")[0]
-                else:
-                    name = str(i).split("\\")[2].split(".")[0]
-                tf.keras.preprocessing.image.save_img(
-                    f"{save_folder}/{name}_rot={rot*90}_scale={scale}{extension}", x=hr
-                )
-
-
-def generate_2(dataset_folder, output_path, f_sub_lr, aug, upscaling):
+def create_patches(dataset_folder, output_path, f_sub_lr, aug, upscaling):
     import h5py
     import glob
     from PIL import Image
@@ -173,65 +151,3 @@ def create_pickle_from_folder(dataset, save_folder, upscaling):
         y.append(tf.expand_dims(hr, 0) / tf.keras.backend.max(lr))
 
     pickle.dump({"x": x, "y": y}, open(save_folder, "wb"))
-
-
-# save_augmented_data("dataset/Set14", "dataset/Set14-aug")
-# create_pickle_from_folder("dataset/Set5", "../Set5.p", 3)
-# create_pickle_from_folder("dataset/Set14", "../Set14.p", 3)
-# create_pickle_from_folder("dataset/BSD200", "../BSD200.p", 3)
-
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-
-    from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
-    from mpl_toolkits.axes_grid1.inset_locator import mark_inset
-    from matplotlib.transforms import Bbox
-    from upscale import upscale_image
-    from fsrcnn import FSRCNN
-    from custom_adam import CustomAdam
-    from PIL import Image
-
-
-    def show_patch(img, x1, x2, y1, y2, zoom, loc, loc1, loc2):
-        fig, ax = plt.subplots(figsize=[5, 4])
-        plt.gca().set_axis_off()
-        plt.subplots_adjust(top=1, bottom=0, right=1, left=0,
-                            hspace=0, wspace=0)
-        plt.margins(0, 0)
-        plt.gca().xaxis.set_major_locator(plt.NullLocator())
-        plt.gca().yaxis.set_major_locator(plt.NullLocator())
-        extent = [0, img.width, 0, img.height]
-        ax.imshow(img, extent=extent)
-        axins = zoomed_inset_axes(ax, zoom=zoom, loc=loc)  # zoom = 6
-        axins.imshow(img, extent=extent, interpolation="nearest")
-        # sub region of the original image
-        axins.set_xlim(x1 * img.width, x2 * img.width)
-        axins.set_ylim(y1 * img.height, y2 * img.height)
-        plt.xticks(visible=False)
-        plt.yticks(visible=False)
-        # draw a bbox of the region of the inset axes in the parent axes and
-        # connecting lines between the bbox and the inset axes area
-        mark_inset(ax, axins, loc1=loc1, loc2=loc2, fc="none", ec="0.5")
-        plt.axis("off")
-        ax.axis("off")
-        #plt.draw()
-
-    # prepare the demo image
-    fsrcnn = FSRCNN(input_shape=(7, 7, 1), d=56, s=12, m=4, upscaling=3)
-    fsrcnn_optimizer = CustomAdam(
-        learning_rate=tf.constant(1e-3, dtype=tf.float32), learning_rate_deconv=tf.constant(1e-4, dtype=tf.float32)
-    )
-
-    ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=fsrcnn_optimizer, net=fsrcnn)
-    ckpt_manager = tf.train.CheckpointManager(ckpt, "./tf_ckpts_3757_epochs", max_to_keep=3)
-    ckpt.restore(ckpt_manager.latest_checkpoint)
-    dir = pathlib.Path("dataset/Set5")
-    _, extension = os.path.splitext(os.listdir(dir)[0])
-    files = list(dir.glob(f"*{extension}"))
-    file = files[2]
-    #for file in tqdm():
-    name = "butterfly.png"
-    img_pred, _, img_hr, img_bicubic, _, _ = upscale_image(fsrcnn, file, 3)
-    show_patch(img_bicubic, x1=0.10, x2=0.30, y1=0.65, y2=0.85, zoom=2, loc=4, loc1=1, loc2=3)
-    plt.savefig("results/bicubic_result_" + name, type="png", bbox_inches="tight", pad_inches=0, dpi=127.5)
