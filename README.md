@@ -5,7 +5,7 @@ Reimplementation of https://arxiv.org/abs/1608.00367 in Tensorflow 2.1.
 ## Changes
   * Used Adam as the optimizer instead of SGD
 
-# Prepare the data
+## Prepare the data
 For the 91-image dataset
 ```
 python extract_patches.py -path "dataset/T91" -output_path "T91_x3.h5" -f_sub_lr 7 -upscaling 3
