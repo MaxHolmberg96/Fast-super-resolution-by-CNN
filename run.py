@@ -217,8 +217,12 @@ fsrcnn_optimizer = CustomAdam(
     learning_rate_deconv=tf.constant(hyperparams["adam_alpha"] / 10, dtype=tf.float32),
 )
 
+if args['weights'] is None:
+    weights = "weights_" + datetime.datetime.now().strftime("%Y%m%d-%H%M")
+else:
+    weights = args["weights"]
 ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=fsrcnn_optimizer, net=fsrcnn)
-ckpt_manager = tf.train.CheckpointManager(ckpt, args["weights"], max_to_keep=3)
+ckpt_manager = tf.train.CheckpointManager(ckpt, weights, max_to_keep=3)
 
 fsrcnn.summary()
 param_count = 0
