@@ -2,7 +2,7 @@
 
 Reimplementation of https://arxiv.org/abs/1608.00367 in Tensorflow 2.1. 
 
-## Changes from original author
+## Changes
   * Used Adam as the optimizer instead of SGD
 
 
