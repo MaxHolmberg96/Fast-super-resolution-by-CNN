@@ -2,6 +2,11 @@
 
 Reimplementation of https://arxiv.org/abs/1608.00367 in Tensorflow 2.1. 
 
+## Authors
+* Max Holmberg
+* Joel Lidin
+* Samuel Norling
+
 ## Changes
   * Used Adam as the optimizer instead of SGD
 
